@@ -1,4 +1,4 @@
-package collector
+package outdatedapi
 
 import (
 	"fmt"
@@ -22,12 +22,12 @@ type Gvk struct {
 
 //K8sAPI object
 type K8sAPI struct {
-	API               string `header:"k8s api"`
-	DeprecatedVersion string `header:"deprecated Version"`
-	RemovedVersion    string `header:"removed Version"`
+	API               string `json:"api"`
+	DeprecatedVersion string `json:"deprecated-version"`
+	RemovedVersion    string `json:"removed-version"`
 }
 
-//MergeMdSwaggerVersions merge swagger and marjdown collector results
+//MergeMdSwaggerVersions merge swagger and marjdown collectors results
 func MergeMdSwaggerVersions(objs []*OutdatedAPI, mDetails map[string]*OutdatedAPI) []K8sAPI {
 	apis := make([]K8sAPI, 0)
 

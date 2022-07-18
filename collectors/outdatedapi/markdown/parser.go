@@ -3,7 +3,7 @@ package markdown
 import (
 	"bufio"
 	"io"
-	"k8s-outdated/collector"
+	"k8s-outdated/collectors/outdatedapi"
 	"net/http"
 	"strings"
 )
@@ -32,7 +32,7 @@ func NewDeprecationGuide() *DeprecationGuide {
 }
 
 //CollectOutdatedAPI collect removed api version from k8s deprecation guide
-func (vz DeprecationGuide) CollectOutdatedAPI() ([]*collector.OutdatedAPI, error) {
+func (vz DeprecationGuide) CollectOutdatedAPI() ([]*outdatedapi.OutdatedAPI, error) {
 	res, err := http.Get(depGuide)
 	if err != nil {
 		return nil, err
@@ -40,8 +40,8 @@ func (vz DeprecationGuide) CollectOutdatedAPI() ([]*collector.OutdatedAPI, error
 	return vz.markdownToObject(res.Body)
 }
 
-func (vz DeprecationGuide) markdownToObject(markdownReader io.Reader) ([]*collector.OutdatedAPI, error) {
-	k8sObjects := make([]*collector.OutdatedAPI, 0)
+func (vz DeprecationGuide) markdownToObject(markdownReader io.Reader) ([]*outdatedapi.OutdatedAPI, error) {
+	k8sObjects := make([]*outdatedapi.OutdatedAPI, 0)
 	scanner := bufio.NewScanner(markdownReader)
 	scanner.Split(bufio.ScanLines)
 	var currentVersion string
@@ -73,7 +73,7 @@ func (vz DeprecationGuide) markdownToObject(markdownReader io.Reader) ([]*collec
 	return k8sObjects, nil
 }
 
-func (vz DeprecationGuide) createAPIObject(line string, k8sObjects []*collector.OutdatedAPI, removedVersion string) []*collector.OutdatedAPI {
+func (vz DeprecationGuide) createAPIObject(line string, k8sObjects []*outdatedapi.OutdatedAPI, removedVersion string) []*outdatedapi.OutdatedAPI {
 	groups := findResourcesGroups([]string{theUpper}, []string{apiVersionOf, apiVersionsOf, apiVersions}, line, []string{"**"})
 	var resources []string
 	if strings.HasPrefix(line, theLower) || strings.HasPrefix(line, theUpper) {
@@ -85,7 +85,7 @@ func (vz DeprecationGuide) createAPIObject(line string, k8sObjects []*collector.
 		apiParts := strings.Split(api, "/")
 		if len(apiParts) == 2 {
 			for _, res := range resources {
-				k8sObjects = append(k8sObjects, &collector.OutdatedAPI{Description: line, Removed: removedVersion, Gav: collector.Gvk{Group: apiParts[0], Version: apiParts[1], Kind: res}})
+				k8sObjects = append(k8sObjects, &outdatedapi.OutdatedAPI{Description: line, Removed: removedVersion, Gav: outdatedapi.Gvk{Group: apiParts[0], Version: apiParts[1], Kind: res}})
 			}
 		}
 	}
@@ -95,7 +95,7 @@ func (vz DeprecationGuide) createAPIObject(line string, k8sObjects []*collector.
 func findVersion(line string, keyWords []string) string {
 	var partLine string
 	for _, keyWord := range keyWords {
-		partLine = collector.FindRemovedDeprecatedVersion(strings.ToLower(line), keyWord)
+		partLine = outdatedapi.FindRemovedDeprecatedVersion(strings.ToLower(line), keyWord)
 		if strings.HasPrefix(partLine, "v1.") {
 			return partLine
 		}

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/go-version"
-	"k8s-outdated/collector"
+	"k8s-outdated/collectors/outdatedapi"
 	"net/http"
 	"strings"
 )
@@ -36,7 +36,7 @@ func NewOpenAPISpec() *OpenAPISpec {
 }
 
 //CollectOutdatedAPI collect removed api version from k8s swagger api
-func (vc OpenAPISpec) CollectOutdatedAPI(k8sVer string) (map[string]*collector.OutdatedAPI, error) {
+func (vc OpenAPISpec) CollectOutdatedAPI(k8sVer string) (map[string]*outdatedapi.OutdatedAPI, error) {
 	r, err := http.Get(k8sTagsURL)
 	if err != nil {
 		return nil, err
@@ -103,15 +103,15 @@ func buildSwaggerURL(version string) string {
 	return fmt.Sprintf("%s/%s/%s", baseURL, version, fileURL)
 }
 
-func (vc OpenAPISpec) versionToDetails(swaggerData []map[string]interface{}) (map[string]*collector.OutdatedAPI, error) {
+func (vc OpenAPISpec) versionToDetails(swaggerData []map[string]interface{}) (map[string]*outdatedapi.OutdatedAPI, error) {
 	if len(swaggerData) == 0 {
-		return map[string]*collector.OutdatedAPI{}, nil
+		return map[string]*outdatedapi.OutdatedAPI{}, nil
 	}
-	gavMap := make(map[string]*collector.OutdatedAPI)
+	gavMap := make(map[string]*outdatedapi.OutdatedAPI)
 	for _, data := range swaggerData {
 		p, ok := data["definitions"]
 		if !ok {
-			return map[string]*collector.OutdatedAPI{}, nil
+			return map[string]*outdatedapi.OutdatedAPI{}, nil
 		}
 		m, err := vc.findOutDatedAPIVersion(p, gavMap)
 		if err != nil {
@@ -121,7 +121,7 @@ func (vc OpenAPISpec) versionToDetails(swaggerData []map[string]interface{}) (ma
 	return gavMap, nil
 }
 
-func (vc OpenAPISpec) findOutDatedAPIVersion(p interface{}, gavMap map[string]*collector.OutdatedAPI) (map[string]*collector.OutdatedAPI, error) {
+func (vc OpenAPISpec) findOutDatedAPIVersion(p interface{}, gavMap map[string]*outdatedapi.OutdatedAPI) (map[string]*outdatedapi.OutdatedAPI, error) {
 	for key, val := range p.(map[string]interface{}) {
 		mval, ok := val.(map[string]interface{})
 		if !ok {
@@ -143,7 +143,7 @@ func (vc OpenAPISpec) findOutDatedAPIVersion(p interface{}, gavMap map[string]*c
 			continue
 		}
 		dep, rem := vc.depRemovedVersion(desc)
-		object := collector.OutdatedAPI{Description: desc, Gav: ga[0], Deprecated: dep, Removed: rem}
+		object := outdatedapi.OutdatedAPI{Description: desc, Gav: ga[0], Deprecated: dep, Removed: rem}
 		if vc.isOutdatedAPIDataIncomplete(object) {
 			continue
 		}
@@ -152,16 +152,16 @@ func (vc OpenAPISpec) findOutDatedAPIVersion(p interface{}, gavMap map[string]*c
 	return nil, nil
 }
 
-func (vc OpenAPISpec) isOutdatedAPIDataIncomplete(object collector.OutdatedAPI) bool {
+func (vc OpenAPISpec) isOutdatedAPIDataIncomplete(object outdatedapi.OutdatedAPI) bool {
 	return (len(object.Deprecated) == 0 && len(object.Removed) == 0) || len(object.Gav.Kind) == 0 || len(object.Gav.Version) == 0 || len(object.Gav.Group) == 0
 }
 
-func (vc OpenAPISpec) parseSwaggerData(gav interface{}) ([]collector.Gvk, error) {
+func (vc OpenAPISpec) parseSwaggerData(gav interface{}) ([]outdatedapi.Gvk, error) {
 	b, err := json.Marshal(&gav)
 	if err != nil {
 		return nil, err
 	}
-	var ga []collector.Gvk
+	var ga []outdatedapi.Gvk
 	err = json.Unmarshal(b, &ga)
 	if err != nil {
 		return nil, err
@@ -173,13 +173,13 @@ func (vc OpenAPISpec) depRemovedVersion(desc string) (string, string) {
 	var dep, rem string
 	lower := strings.ToLower(desc)
 	if strings.Contains(lower, deprecatedIn) {
-		dep = collector.FindRemovedDeprecatedVersion(lower, deprecatedIn)
+		dep = outdatedapi.FindRemovedDeprecatedVersion(lower, deprecatedIn)
 	}
 	if strings.Contains(lower, removedIn) {
-		rem = collector.FindRemovedDeprecatedVersion(lower, removedIn)
+		rem = outdatedapi.FindRemovedDeprecatedVersion(lower, removedIn)
 	}
 	if strings.Contains(lower, servedIn) {
-		rem = collector.FindRemovedDeprecatedVersion(lower, servedIn)
+		rem = outdatedapi.FindRemovedDeprecatedVersion(lower, servedIn)
 	}
 	return dep, rem
 }
