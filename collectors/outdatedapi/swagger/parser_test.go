@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
-	"k8s-outdated/collectors/outdatedapi"
+	"k8s-outdated/collectors/outdatedapi/outdated"
 	"testing"
 )
 
@@ -14,12 +14,12 @@ func TestMapResources(t *testing.T) {
 		filePath     string
 		markDownLine string
 		values       []string
-		ExpectedData []*outdatedapi.OutdatedAPI
+		ExpectedData []*outdated.OutdatedAPI
 	}{
 		{name: "k8s api v1.20.1 apis", filePath: "./testdata/fixture/k8s_v1.20.1.api.json", values: []string{
-			"io.k8s.api.rbac.v1alpha1.ClusterRoleBinding", "io.k8s.api.rbac.v1alpha1.RoleBinding"}, ExpectedData: []*outdatedapi.OutdatedAPI{
-			{Deprecated: "v1.17", Removed: "v1.22", Gav: outdatedapi.Gvk{Group: "rbac.authorization.k8s.io", Version: "v1alpha1", Kind: "ClusterRoleBinding"}},
-			{Deprecated: "v1.17", Removed: "v1.22", Gav: outdatedapi.Gvk{Group: "rbac.authorization.k8s.io", Version: "v1alpha1", Kind: "RoleBinding"}}}},
+			"io.k8s.api.rbac.v1alpha1.ClusterRoleBinding", "io.k8s.api.rbac.v1alpha1.RoleBinding"}, ExpectedData: []*outdated.OutdatedAPI{
+			{Deprecated: "v1.17", Removed: "v1.22", Gav: outdated.Gvk{Group: "rbac.authorization.k8s.io", Version: "v1alpha1", Kind: "ClusterRoleBinding"}},
+			{Deprecated: "v1.17", Removed: "v1.22", Gav: outdated.Gvk{Group: "rbac.authorization.k8s.io", Version: "v1alpha1", Kind: "RoleBinding"}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
