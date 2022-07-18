@@ -2,12 +2,12 @@
 
 [![Go Report Card][report-card-img]][report-card]
 [![License][license-img]][license]
-[![Update vuln-list repo](https://github.com/aquasecurity/k8s-db-collecotr/actions/workflows/update.yml/badge.svg)](https://github.com/aquasecurity/k8s-db-collecotr/actions/workflows/update.yml)
+[![k8s-db-collector repo](https://github.com/aquasecurity/k8s-db-collecotr/actions/workflows/update.yml/badge.svg)](https://github.com/aquasecurity/k8s-db-collecotr/actions/workflows/update.yml)
 
 [report-card-img]: https://goreportcard.com/badge/github.com/aquasecurity/k8s-db-collecotr
 [report-card]: https://goreportcard.com/report/github.com/aquasecurity/k8s-db-collecotr
 [license-img]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
-[license]: https://github.com/aquasecurity/vuln-list-update/blob/main/LICENSE
+[license]: https://github.com/aquasecurity/k8s-db-collector/blob/main/LICENSE
 
 Collect k8s deprecated and removed API information and save it in parsable format automatically
  - [kubernetes deprecation-guide](https://raw.githubusercontent.com/kubernetes/website/main/content/en/docs/reference/using-api/deprecation-guide.md)
