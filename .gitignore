@@ -17,3 +17,5 @@ coverage.md
 coverage.html
 vendor
 lint.xml
+.idea/
+coverage.txt

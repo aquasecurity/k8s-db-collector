@@ -1,4 +1,4 @@
-package collector
+package outdatedapi
 
 import (
 	"github.com/stretchr/testify/assert"

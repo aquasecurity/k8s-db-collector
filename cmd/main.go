@@ -1,11 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/lensesio/tableprinter"
-	"k8s-outdated/collector"
-	"k8s-outdated/collector/markdown"
-	"k8s-outdated/collector/swagger"
+	"k8s-outdated/collectors/outdatedapi"
+	"k8s-outdated/collectors/outdatedapi/markdown"
+	"k8s-outdated/collectors/outdatedapi/swagger"
 	"os"
 )
 
@@ -27,7 +27,12 @@ func main() {
 		os.Exit(1)
 	}
 	// merge swagger and markdown results
-	apis := collector.MergeMdSwaggerVersions(objs, mDetails)
-	// print result in a table
-	tableprinter.Print(os.Stdout, apis)
+	apis := outdatedapi.MergeMdSwaggerVersions(objs, mDetails)
+	data, err := json.Marshal(apis)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	fmt.Println(string(data))
+
 }
