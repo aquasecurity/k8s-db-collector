@@ -1,4 +1,4 @@
-package outdatedapi
+package utils
 
 import "strings"
 
