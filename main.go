@@ -34,9 +34,6 @@ func run() error {
 	gc := &git.Config{}
 	debug := os.Getenv("VULN_LIST_DEBUG") != ""
 
-	repoOwner := utils.LookupEnv("DATA_REPOSITORY_OWNER", defaultRepoOwner)
-	repoName := utils.LookupEnv("TRIVY_DB_DATA_REPOSITORY_NAME", defaultRepoName)
-
 	// Embed GitHub token to URL
 	githubToken := os.Getenv("ORG_GITHUB_TOKEN")
 	url := fmt.Sprintf(repoURL, githubToken, defaultRepoOwner, defaultRepoName)
