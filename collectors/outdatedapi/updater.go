@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"golang.org/x/xerrors"
 	"k8s-outdated/collectors/outdatedapi/outdated"
+	"k8s-outdated/collectors/outdatedapi/utils"
 	"log"
 	"path/filepath"
 
@@ -28,7 +29,7 @@ type Updater struct {
 // NewUpdater return new updater instance
 func NewUpdater(opts ...option) Updater {
 	o := &options{
-		outdatedDir: K8sAPIDir(),
+		outdatedDir: utils.K8sAPIDir(),
 		version:     version,
 	}
 	for _, opt := range opts {
@@ -83,17 +84,4 @@ func (u Updater) Update() error {
 	}
 
 	return nil
-}
-
-func K8sAPIDir() string {
-	return filepath.Join(CacheDir(), "db-data")
-}
-
-func CacheDir() string {
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		cacheDir = os.TempDir()
-	}
-	dir := filepath.Join(cacheDir, "k8s-db-collector")
-	return dir
 }

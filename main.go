@@ -4,9 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/aquasecurity/vuln-list-update/git"
-	"github.com/aquasecurity/vuln-list-update/utils"
 	"golang.org/x/xerrors"
 	"k8s-outdated/collectors/outdatedapi"
+	u "k8s-outdated/collectors/outdatedapi/utils"
 	"log"
 	"os"
 	"time"
@@ -40,7 +40,7 @@ func run() error {
 
 	log.Printf("target repository is %s/%s\n", defaultRepoOwner, defaultRepoName)
 
-	dir := outdatedapi.K8sAPIDir()
+	dir := u.K8sAPIDir()
 	if _, err := gc.CloneOrPull(url, dir, "main", debug); err != nil {
 		return fmt.Errorf("clone or pull error: %w", err)
 	}
@@ -69,7 +69,7 @@ func run() error {
 		return nil
 	}
 
-	if err := utils.SetLastUpdatedDate(*target, now); err != nil {
+	if err := u.SetLastUpdatedDate(*target, now); err != nil {
 		return err
 	}
 
