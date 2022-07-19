@@ -38,10 +38,10 @@ func run() error {
 	repoName := utils.LookupEnv("TRIVY_DB_DATA_REPOSITORY_NAME", defaultRepoName)
 
 	// Embed GitHub token to URL
-	githubToken := os.Getenv("GITHUB_TOKEN")
-	url := fmt.Sprintf(repoURL, githubToken, repoOwner, repoName)
+	githubToken := os.Getenv("ORG_GITHUB_TOKEN")
+	url := fmt.Sprintf(repoURL, githubToken, defaultRepoOwner, defaultRepoName)
 
-	log.Printf("target repository is %s/%s\n", repoOwner, repoName)
+	log.Printf("target repository is %s/%s\n", defaultRepoOwner, defaultRepoName)
 
 	dir := outdatedapi.K8sAPIDir()
 	if _, err := gc.CloneOrPull(url, dir, "main", debug); err != nil {
