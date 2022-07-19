@@ -6,6 +6,8 @@ on:
 
 jobs:
   update:
+    permissions:
+      contents: read # Explicitly add this.
     name: Update repo trivy-db-update
     runs-on: ubuntu-latest
     env:
