@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/aquasecurity/vuln-list-update/git"
+	"github.com/aquasecurity/vuln-list-update/utils"
 	"golang.org/x/xerrors"
 	"k8s-outdated/collectors/outdatedapi"
 	u "k8s-outdated/collectors/outdatedapi/utils"
@@ -34,11 +35,13 @@ func run() error {
 	gc := &git.Config{}
 	debug := os.Getenv("VULN_LIST_DEBUG") != ""
 
+	repoOwner := utils.LookupEnv("VULNLIST_REPOSITORY_OWNER", defaultRepoOwner)
+	repoName := utils.LookupEnv("VULNLIST_REPOSITORY_NAME", defaultRepoName)
 	// Embed GitHub token to URL
 	githubToken := os.Getenv("GITHUB_TOKEN")
-	url := fmt.Sprintf(repoURL, githubToken, defaultRepoOwner, defaultRepoName)
+	url := fmt.Sprintf(repoURL, githubToken, repoOwner, repoName)
 
-	log.Printf("target repository is %s/%s\n", defaultRepoOwner, defaultRepoName)
+	log.Printf("target repository is %s/%s\n", repoName, repoName)
 
 	dir := u.K8sAPIDir()
 	if _, err := gc.CloneOrPull(url, dir, "main", debug); err != nil {
