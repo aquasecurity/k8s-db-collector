@@ -2,10 +2,10 @@
 
 [![Go Report Card][report-card-img]][report-card]
 [![License][license-img]][license]
-[![k8s-db-collector repo](https://github.com/aquasecurity/k8s-db-collecotr/actions/workflows/update.yml/badge.svg)](https://github.com/aquasecurity/k8s-db-collecotr/actions/workflows/update.yml)
+[![k8s-db-collector repo](https://github.com/aquasecurity/k8s-db-collector/actions/workflows/update.yml/badge.svg)](https://github.com/aquasecurity/k8s-db-collecotr/actions/workflows/update.yml)
 
-[report-card-img]: https://goreportcard.com/badge/github.com/aquasecurity/k8s-db-collecotr
-[report-card]: https://goreportcard.com/report/github.com/aquasecurity/k8s-db-collecotr
+[report-card-img]: https://goreportcard.com/badge/github.com/aquasecurity/k8s-db-collector
+[report-card]: https://goreportcard.com/report/github.com/aquasecurity/k8s-db-collector
 [license-img]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [license]: https://github.com/aquasecurity/k8s-db-collector/blob/main/LICENSE
 
