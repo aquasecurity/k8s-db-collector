@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"golang.org/x/xerrors"
+	"k8s-outdated/collectors"
 	"k8s-outdated/collectors/outdatedapi/outdated"
 	"k8s-outdated/collectors/outdatedapi/utils"
 	"log"
@@ -16,9 +17,9 @@ import (
 )
 
 const (
-	outdatedAPIDir = "k8s-api"
 	version        = "1.19.1"
 	k8sAPIFileName = "k8s-outdated-api.json"
+	apiFolder      = "api"
 )
 
 // Updater fetch k8s outdated API Object
@@ -30,6 +31,7 @@ type Updater struct {
 func NewUpdater(opts ...option) Updater {
 	o := &options{
 		outdatedDir: utils.K8sAPIDir(),
+		apiFolder:   filepath.Join(collectors.MainFolder, apiFolder),
 		version:     version,
 	}
 	for _, opt := range opts {
@@ -43,6 +45,7 @@ func NewUpdater(opts ...option) Updater {
 type options struct {
 	version     string
 	outdatedDir string
+	apiFolder   string
 }
 
 type option func(*options)
@@ -66,7 +69,7 @@ func (u Updater) Update() error {
 	if err != nil {
 		return err
 	}
-	fp := filepath.Join(u.outdatedDir, outdatedAPIDir)
+	fp := filepath.Join(u.outdatedDir, u.apiFolder)
 	log.Printf("Remove k8s outdated api directory %s", fp)
 	if err := os.RemoveAll(fp); err != nil {
 		return fmt.Errorf("failed to remove k8s outdated api directory: %w", err)
