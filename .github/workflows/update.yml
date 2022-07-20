@@ -11,7 +11,7 @@ jobs:
     name: Update repo trivy-db-update
     runs-on: ubuntu-latest
     env:
-      GITHUB_TOKEN: ${{ secrets.ACCESS_SECRET }}
+      GITHUB_TOKEN: ${{ secrets.ORG_REPO_TOKEN }}
     steps:
       - name: Set up Go
         uses: actions/setup-go@v3
