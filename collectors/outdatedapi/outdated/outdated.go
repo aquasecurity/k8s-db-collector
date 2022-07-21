@@ -22,9 +22,12 @@ type Gvk struct {
 
 //K8sAPI object
 type K8sAPI struct {
-	API               string `json:"api"`
+	Description       string `json:"description"`
 	DeprecatedVersion string `json:"deprecated-version"`
 	RemovedVersion    string `json:"removed-version"`
+	Group             string `json:"group"`
+	Version           string `json:"version"`
+	Kind              string `json:"kind"`
 }
 
 //MergeMdSwaggerVersions merge swagger and marjdown collectors results
@@ -37,10 +40,10 @@ func MergeMdSwaggerVersions(objs []*OutdatedAPI, mDetails map[string]*OutdatedAP
 			val.Removed = obj.Removed
 			continue
 		}
-		apis = append(apis, K8sAPI{API: fmt.Sprintf("%s.%s.%s", obj.Gav.Group, obj.Gav.Version, obj.Gav.Kind), DeprecatedVersion: obj.Deprecated, RemovedVersion: obj.Removed})
+		apis = append(apis, K8sAPI{Description: obj.Description, Group: obj.Gav.Group, Version: obj.Gav.Version, Kind: obj.Gav.Kind, DeprecatedVersion: obj.Deprecated, RemovedVersion: obj.Removed})
 	}
 	for _, md := range mDetails {
-		apis = append(apis, K8sAPI{API: fmt.Sprintf("%s.%s.%s", md.Gav.Group, md.Gav.Version, md.Gav.Kind), DeprecatedVersion: md.Deprecated, RemovedVersion: md.Removed})
+		apis = append(apis, K8sAPI{Description: md.Description, Group: md.Gav.Group, Version: md.Gav.Version, Kind: md.Gav.Kind, DeprecatedVersion: md.Deprecated, RemovedVersion: md.Removed})
 	}
 	return apis
 }
