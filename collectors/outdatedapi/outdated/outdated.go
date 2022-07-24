@@ -47,3 +47,31 @@ func MergeMdSwaggerVersions(objs []*OutdatedAPI, mDetails map[string]*OutdatedAP
 	}
 	return apis
 }
+
+//ValidateOutDatedAPI validate outdated data is complete
+func ValidateOutDatedAPI(K8sapis []K8sAPI) []K8sAPI {
+	apis := make([]K8sAPI, 0)
+	for _, ka := range K8sapis {
+		if len(ka.Version) == 0 || len(ka.Kind) == 0 || len(ka.Group) == 0 {
+			continue
+		}
+		if !validVersion(ka.DeprecatedVersion) {
+			ka.DeprecatedVersion = ""
+		}
+		if !validVersion(ka.RemovedVersion) {
+			ka.RemovedVersion = ""
+		}
+		if len(ka.DeprecatedVersion) == 0 && len(ka.RemovedVersion) == 0 {
+			continue
+		}
+		if len(ka.Description) == 0 {
+			continue
+		}
+		apis = append(apis, ka)
+	}
+	return apis
+}
+
+func validVersion(version string) bool {
+	return len(version) != 0 && strings.HasPrefix(version, "v")
+}
