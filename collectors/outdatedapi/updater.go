@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/xerrors"
 	"k8s-outdated/collectors"
 	"k8s-outdated/collectors/outdatedapi/outdated"
 	"k8s-outdated/collectors/outdatedapi/utils"
 	"log"
 	"path/filepath"
+
+	"golang.org/x/xerrors"
 
 	"k8s-outdated/collectors/outdatedapi/markdown"
 	"k8s-outdated/collectors/outdatedapi/swagger"
@@ -65,6 +66,11 @@ func (u Updater) Update() error {
 	}
 	// merge swagger and markdown results
 	apis := outdated.MergeMdSwaggerVersions(objs, mDetails)
+	// validate outdated api data
+	validatedAPIs := outdated.ValidateOutDatedAPI(apis)
+	if len(validatedAPIs) == 0 {
+		return fmt.Errorf("no outdated api data to publish")
+	}
 	data, err := json.Marshal(apis)
 	if err != nil {
 		return err
