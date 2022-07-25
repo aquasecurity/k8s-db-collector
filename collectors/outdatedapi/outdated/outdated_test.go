@@ -50,10 +50,14 @@ func TestValidateOutData(t *testing.T) {
 	}{
 		{name: "bad removed version", hasAPIS: true,
 			outdated: []K8sAPI{{Description: "des", DeprecatedVersion: "v1.21", RemovedVersion: "1.25", Version: "v1beta1", Group: "storage.k8s.io", Kind: "CSIStorageCapacity"}},
-			want:     &K8sAPI{Description: "des", DeprecatedVersion: "v1.21", RemovedVersion: "", Version: "v1beta1", Group: "storage.k8s.io", Kind: "CSIStorageCapacity"},
+			want:     &K8sAPI{Description: "des", DeprecatedVersion: "v1.21", RemovedVersion: "v1.25", Version: "v1beta1", Group: "storage.k8s.io", Kind: "CSIStorageCapacity"},
 		},
 		{name: "bad deprecated version", hasAPIS: true,
 			outdated: []K8sAPI{{Description: "des", DeprecatedVersion: "1.21", RemovedVersion: "v1.25", Version: "v1beta1", Group: "storage.k8s.io", Kind: "CSIStorageCapacity"}},
+			want:     &K8sAPI{Description: "des", DeprecatedVersion: "v1.21", RemovedVersion: "v1.25", Version: "v1beta1", Group: "storage.k8s.io", Kind: "CSIStorageCapacity"},
+		},
+		{name: "bad deprecated version", hasAPIS: true,
+			outdated: []K8sAPI{{Description: "des", DeprecatedVersion: "a.a.a", RemovedVersion: "v1.25", Version: "v1beta1", Group: "storage.k8s.io", Kind: "CSIStorageCapacity"}},
 			want:     &K8sAPI{Description: "des", DeprecatedVersion: "", RemovedVersion: "v1.25", Version: "v1beta1", Group: "storage.k8s.io", Kind: "CSIStorageCapacity"},
 		},
 		{name: "no desription", hasAPIS: false,
@@ -76,7 +80,7 @@ func TestValidateOutData(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ValidateOutDatedAPI(tt.outdated)
+			got := ValidateOutdatedAPI(tt.outdated)
 			if !tt.hasAPIS {
 				assert.True(t, len(got) == 0)
 			} else {

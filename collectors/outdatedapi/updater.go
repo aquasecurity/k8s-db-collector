@@ -67,7 +67,7 @@ func (u Updater) Update() error {
 	// merge swagger and markdown results
 	apis := outdated.MergeMdSwaggerVersions(objs, mDetails)
 	// validate outdated api data
-	validatedAPIs := outdated.ValidateOutDatedAPI(apis)
+	validatedAPIs := outdated.ValidateOutdatedAPI(apis)
 	if len(validatedAPIs) == 0 {
 		return fmt.Errorf("no outdated api data to publish")
 	}
