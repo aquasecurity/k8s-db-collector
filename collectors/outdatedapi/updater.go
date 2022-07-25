@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	version        = "1.19.1"
+	version        = "1.18.0"
 	k8sAPIFileName = "k8s-outdated-api.json"
 	apiFolder      = "api"
 )
