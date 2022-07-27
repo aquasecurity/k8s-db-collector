@@ -2,8 +2,8 @@ package outdated
 
 import (
 	"fmt"
-	"strings"
 	"github.com/hashicorp/go-version"
+	"strings"
 )
 
 //OutdatedAPI object
@@ -24,7 +24,9 @@ type Gvk struct {
 //K8sAPI object
 type K8sAPI struct {
 	Description       string `json:"description"`
+	IntroducedVersion string `json:"introduced-version"`
 	DeprecatedVersion string `json:"deprecated-version"`
+	ReplacmentVersion string `json:"replacment-version"`
 	RemovedVersion    string `json:"removed-version"`
 	Group             string `json:"group"`
 	Version           string `json:"version"`
@@ -56,10 +58,10 @@ func ValidateOutdatedAPI(K8sapis []K8sAPI) []K8sAPI {
 		if len(ka.Version) == 0 || len(ka.Kind) == 0 || len(ka.Group) == 0 {
 			continue
 		}
-		if val,ok :=validVersion(ka.DeprecatedVersion); !ok {
+		if val, ok := validVersion(ka.DeprecatedVersion); !ok {
 			ka.DeprecatedVersion = val
 		}
-		if val,ok := validVersion(ka.RemovedVersion); !ok {
+		if val, ok := validVersion(ka.RemovedVersion); !ok {
 			ka.RemovedVersion = val
 		}
 		if len(ka.DeprecatedVersion) == 0 && len(ka.RemovedVersion) == 0 {
@@ -73,13 +75,13 @@ func ValidateOutdatedAPI(K8sapis []K8sAPI) []K8sAPI {
 	return apis
 }
 
-func validVersion(v string) (string,bool) {
-	_,err:=version.NewVersion(v)
-	if err != nil { 
-		return "",false
+func validVersion(v string) (string, bool) {
+	_, err := version.NewVersion(v)
+	if err != nil {
+		return "", false
 	}
 	if strings.HasPrefix(v, "v") {
-		return v,true
+		return v, true
 	}
-	return fmt.Sprintf("v%s",v),false
+	return fmt.Sprintf("v%s", v), false
 }

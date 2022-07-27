@@ -19,3 +19,4 @@ vendor
 lint.xml
 .idea/
 coverage.txt
+.vscode/
