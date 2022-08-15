@@ -53,18 +53,6 @@ type option func(*options)
 //Update latest outdated API list
 func (u Updater) Update() error {
 	log.Println("Fetching k8s outdated api data...")
-	/*// parse deprecate and removed versions from k8s swagger api
-	mDetails, err := swagger.NewOpenAPISpec().CollectOutdatedAPI(u.version)
-	if err != nil {
-		return err
-	}
-	// parse removed version from k8s deprecation mark down docs
-	objs, err := markdown.NewDeprecationGuide().CollectOutdatedAPI()
-	if err != nil {
-		return err
-	}
-	// merge swagger and markdown results
-	apis := outdated.MergeMdSwaggerVersions(objs, mDetails)*/
 	apis, err := lifecycle.CollectLifCycleAPI()
 	if err != nil {
 		return err
