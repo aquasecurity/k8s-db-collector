@@ -59,6 +59,9 @@ func (u Updater) Update() error {
 	}
 	// validate outdated api data
 	validatedAPIs, err := outdated.ValidateOutdatedAPI(apis)
+	if err != nil {
+		return err
+	}
 	if len(validatedAPIs) == 0 {
 		return fmt.Errorf("no outdated api data to publish")
 	}
