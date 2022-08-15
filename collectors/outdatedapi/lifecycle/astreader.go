@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -36,27 +35,9 @@ func (ar AstReader) Analyze(code string) ([]AstData, error) {
 		case *ast.File:
 			pkg = x.Name.String()
 		case *ast.ReturnStmt:
-			results := make([]string, 0)
-			fmt.Println("\n\t")
-			for _, val := range x.Results {
-				if k, ok := val.(*ast.BasicLit); ok {
-					fmt.Println(k.Value)
-					results = append(results, k.Value)
-				} else {
-					if k, ok := val.(*ast.CompositeLit); ok {
-						for _, el := range k.Elts {
-							a := el.(ast.Expr).(*ast.KeyValueExpr)
-							fmt.Println(a.Value.(*ast.BasicLit).Value)
-							results = append(results, a.Value.(*ast.BasicLit).Value)
-						}
-					}
-				}
-			}
+			results := ar.updateMethodReturn(x)
 			ad.returnParams = results
-			if len(ad.recv) > 0 && len(ad.returnParams) > 0 && len(ad.methodName) > 0 && len(ad.filePackage) > 0 {
-				astDataArr = append(astDataArr, ad)
-				ad = AstData{}
-			}
+			ad, astDataArr = ar.updateAst(ad, astDataArr)
 			return true
 		// Find Functions
 		case *ast.FuncDecl:
@@ -69,14 +50,36 @@ func (ar AstReader) Analyze(code string) ([]AstData, error) {
 						ad.filePackage = pkg
 					}
 				}
-				if len(ad.recv) > 0 && len(ad.returnParams) > 0 && len(ad.methodName) > 0 && len(ad.filePackage) > 0 {
-					astDataArr = append(astDataArr, ad)
-					ad = AstData{}
-				}
+				ad, astDataArr = ar.updateAst(ad, astDataArr)
 			}
 			return true
 		}
 		return true
 	})
 	return astDataArr, nil
+}
+
+func (ar AstReader) updateAst(ad AstData, astDataArr []AstData) (AstData, []AstData) {
+	if len(ad.recv) > 0 && len(ad.returnParams) > 0 && len(ad.methodName) > 0 && len(ad.filePackage) > 0 {
+		astDataArr = append(astDataArr, ad)
+		ad = AstData{}
+	}
+	return ad, astDataArr
+}
+
+func (ar AstReader) updateMethodReturn(x *ast.ReturnStmt) []string {
+	results := make([]string, 0)
+	for _, val := range x.Results {
+		if k, ok := val.(*ast.BasicLit); ok {
+			results = append(results, k.Value)
+		} else {
+			if k, ok := val.(*ast.CompositeLit); ok {
+				for _, el := range k.Elts {
+					a := el.(ast.Expr).(*ast.KeyValueExpr)
+					results = append(results, a.Value.(*ast.BasicLit).Value)
+				}
+			}
+		}
+	}
+	return results
 }
