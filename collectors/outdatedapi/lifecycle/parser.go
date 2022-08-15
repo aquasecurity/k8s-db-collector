@@ -1,4 +1,4 @@
-package main
+package lifecycle
 
 import (
 	"archive/tar"
@@ -17,6 +17,7 @@ const (
 	k8sMasterReleaseTarBall = "https://codeload.github.com/kubernetes/kubernetes/legacy.tar.gz/refs/heads/master"
 	preReleaseLifeCycleFile = "zz_generated.prerelease-lifecycle.go"
 	k8sapiSeperator         = "k8s.io/api/"
+	docsBaseUrl             = "https://github.com/kubernetes/kubernetes/tree/master/staging/src/k8s.io/api"
 
 	// lifecycle implementing methods
 	apiLifecycleDeprecated  = "APILifecycleDeprecated"
@@ -37,7 +38,6 @@ func CollectLifCycleAPI() ([]*outdated.K8sAPI, error) {
 		}
 	}()
 	m, err := Untar(resp.Body)
-	astReader := NewAstReader()
 	gvmOutdatedAPI := make(map[string]*outdated.K8sAPI)
 	outdatedArr := make([]*outdated.K8sAPI, 0)
 	for gv, source := range m {
@@ -45,7 +45,7 @@ func CollectLifCycleAPI() ([]*outdated.K8sAPI, error) {
 		if err != nil {
 			return nil, err
 		}
-		asd, err := astReader.Analyze(source)
+		asd, err := NewAstReader().Analyze(source)
 		if err != nil {
 			return nil, err
 		}
@@ -65,6 +65,7 @@ func CollectLifCycleAPI() ([]*outdated.K8sAPI, error) {
 			case apiLifecycleReplacement:
 				data.ReplacementVersion = getVersion(d.returnParams, true)
 			}
+			data.Ref = fmt.Sprintf("%s/%s/%s", docsBaseUrl, gv, preReleaseLifeCycleFile)
 		}
 	}
 	for _, k8sOutdated := range gvmOutdatedAPI {

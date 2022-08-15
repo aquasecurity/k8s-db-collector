@@ -1,4 +1,4 @@
-package main
+package lifecycle
 
 import (
 	"go/ast"
