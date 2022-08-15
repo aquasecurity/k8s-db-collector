@@ -14,7 +14,6 @@ func NewAstReader() AstReader {
 }
 
 type AstData struct {
-	filePackage  string
 	recv         string
 	methodName   string
 	returnParams []string
@@ -28,12 +27,9 @@ func (ar AstReader) Analyze(code string) ([]AstData, error) {
 		return nil, err
 	}
 	ad := AstData{}
-	var pkg string
 	ast.Inspect(node, func(n ast.Node) bool {
 		// Find Return Statements
 		switch x := n.(type) {
-		case *ast.File:
-			pkg = x.Name.String()
 		case *ast.ReturnStmt:
 			results := ar.updateMethodReturn(x)
 			ad.returnParams = results
@@ -41,17 +37,8 @@ func (ar AstReader) Analyze(code string) ([]AstData, error) {
 			return true
 		// Find Functions
 		case *ast.FuncDecl:
-			for _, v := range x.Recv.List {
-				switch xv := v.Type.(type) {
-				case *ast.StarExpr:
-					if si, ok := xv.X.(*ast.Ident); ok {
-						ad.recv = si.Name
-						ad.methodName = x.Name.Name
-						ad.filePackage = pkg
-					}
-				}
-				ad, astDataArr = ar.updateAst(ad, astDataArr)
-			}
+			ar.updateDecl(x, &ad)
+			ad, astDataArr = ar.updateAst(ad, astDataArr)
 			return true
 		}
 		return true
@@ -59,8 +46,20 @@ func (ar AstReader) Analyze(code string) ([]AstData, error) {
 	return astDataArr, nil
 }
 
+func (ar AstReader) updateDecl(x *ast.FuncDecl, ad *AstData) {
+	for _, v := range x.Recv.List {
+		switch xv := v.Type.(type) {
+		case *ast.StarExpr:
+			if si, ok := xv.X.(*ast.Ident); ok {
+				ad.recv = si.Name
+				ad.methodName = x.Name.Name
+			}
+		}
+	}
+}
+
 func (ar AstReader) updateAst(ad AstData, astDataArr []AstData) (AstData, []AstData) {
-	if len(ad.recv) > 0 && len(ad.returnParams) > 0 && len(ad.methodName) > 0 && len(ad.filePackage) > 0 {
+	if len(ad.recv) > 0 && len(ad.returnParams) > 0 && len(ad.methodName) > 0 {
 		astDataArr = append(astDataArr, ad)
 		ad = AstData{}
 	}

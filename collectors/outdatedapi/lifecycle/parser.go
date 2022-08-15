@@ -19,7 +19,6 @@ const (
 	k8sapiSeperator         = "k8s.io/api/"
 
 	// lifecycle implementing methods
-
 	apiLifecycleDeprecated  = "APILifecycleDeprecated"
 	apiLifecycleReplacement = "APILifecycleReplacement"
 	apiLifecycleRemoved     = "APILifecycleRemoved"
@@ -41,14 +40,12 @@ func CollectLifCycleAPI() ([]*outdated.K8sAPI, error) {
 	astReader := NewAstReader()
 	gvmOutdatedAPI := make(map[string]*outdated.K8sAPI)
 	outdatedArr := make([]*outdated.K8sAPI, 0)
-	for key, val := range m {
-		gv := strings.Split(key, "/")
-		if len(gv) != 2 {
-			continue
+	for gv, source := range m {
+		group, version, err := getGroupVersion(gv)
+		if err != nil {
+			return nil, err
 		}
-		group := gv[0]
-		version := gv[1]
-		asd, err := astReader.Analyze(val)
+		asd, err := astReader.Analyze(source)
 		if err != nil {
 			return nil, err
 		}
@@ -69,9 +66,19 @@ func CollectLifCycleAPI() ([]*outdated.K8sAPI, error) {
 				data.ReplacementVersion = getVersion(d.returnParams, true)
 			}
 		}
-		outdatedArr = append(outdatedArr, data)
+	}
+	for _, k8sOutdated := range gvmOutdatedAPI {
+		outdatedArr = append(outdatedArr, k8sOutdated)
 	}
 	return outdatedArr, err
+}
+
+func getGroupVersion(key string) (string, string, error) {
+	gv := strings.Split(key, "/")
+	if len(gv) != 2 {
+		return "", "", fmt.Errorf("failed to find group version for key: %s", key)
+	}
+	return gv[0], gv[1], nil
 }
 
 func getVersion(nums []string, replacement bool) string {
