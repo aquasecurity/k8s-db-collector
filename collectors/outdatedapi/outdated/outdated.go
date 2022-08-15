@@ -23,14 +23,13 @@ type Gvk struct {
 
 //K8sAPI object
 type K8sAPI struct {
-	Description       string `json:"description"`
-	IntroducedVersion string `json:"introduced-version"`
-	DeprecatedVersion string `json:"deprecated-version"`
-	ReplacmentVersion string `json:"replacment-version"`
-	RemovedVersion    string `json:"removed-version"`
-	Group             string `json:"group"`
-	Version           string `json:"version"`
-	Kind              string `json:"kind"`
+	Description        string `json:"description"`
+	DeprecatedVersion  string `json:"deprecated-version"`
+	ReplacementVersion string `json:"replacement-version"`
+	RemovedVersion     string `json:"removed-version"`
+	Group              string `json:"group"`
+	Version            string `json:"version"`
+	Kind               string `json:"kind"`
 }
 
 //MergeMdSwaggerVersions merge swagger and marjdown collectors results

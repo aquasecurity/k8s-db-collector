@@ -1,14 +1,15 @@
-package lifecycle
+package main
 
 import (
 	"archive/tar"
-	"bufio"
+	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"k8s-outdated/collectors/outdatedapi/outdated"
 	"net/http"
+	"path/filepath"
 	"strings"
 )
 
@@ -18,22 +19,14 @@ const (
 	k8sapiSeperator         = "k8s.io/api/"
 
 	// lifecycle implementing methods
-	apiLifecycleIntroduce   = "APILifecycleIntroduced"
-	apiLifecycleDeprecated  = " APILifecycleDeprecated"
+
+	apiLifecycleDeprecated  = "APILifecycleDeprecated"
 	apiLifecycleReplacement = "APILifecycleReplacement"
 	apiLifecycleRemoved     = "APILifecycleRemoved"
 )
 
-//PreRelease object
-type PreRelease struct{}
-
-//NewPreRelease instansiate new DeprecationGuide
-func NewPreRelease() *PreRelease {
-	return &PreRelease{}
-}
-
-//CollectLifCycleAPI colllect api info deprecation / removal and replacment info as implemented by designated APIs
-func CollectLifCycleAPI() (*outdated.K8sAPI, error) {
+//CollectLifCycleAPI collect api info deprecation / removal and replacement info as implemented by designated APIs
+func CollectLifCycleAPI() ([]*outdated.K8sAPI, error) {
 	resp, err := http.Get(k8sMasterReleaseTarBall)
 	if err != nil {
 		return nil, err
@@ -44,101 +37,56 @@ func CollectLifCycleAPI() (*outdated.K8sAPI, error) {
 			fmt.Println(err.Error())
 		}
 	}()
-
-return nil,err
-}
-
-func (pr PreRelease) parsePreReleaseLifecycle(gv string, r io.Reader) map[string]*outdated.K8sAPI {
-	apisMap := make(map[string]*outdated.K8sAPI)
-	scanner := bufio.NewScanner(r)
-	scanner.Split(bufio.ScanLines)
-	groupVersion := strings.Split(gv, "/")
-	if len(groupVersion) != 2 {
-		return nil
-	}
-	var group, version, kind string
-	group = groupVersion[0]
-	version = groupVersion[1]
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.Contains(line, apiLifecycleIntroduce) {
-			kind = findResource(line, []string{apiLifecycleIntroduce, "()", "{", "}", "func", "in", "", "major", "minor", "int", "*"})
-			if _, ok := apisMap[fmt.Sprintf("%s/%s", gv, kind)]; !ok {
-				apisMap[fmt.Sprintf("%s/%s", gv, kind)] = &outdated.K8sAPI{Group: group, Version: version, Kind: kind}
-			}
-			if scanner.Scan() {
-				version := findVersion(scanner.Text(), []string{"return"})
-				apisMap[fmt.Sprintf("%s/%s", gv, kind)].IntroducedVersion = version
-			}
+	m, err := Untar(resp.Body)
+	astReader := NewAstReader()
+	gvmOutdatedAPI := make(map[string]*outdated.K8sAPI)
+	outdatedArr := make([]*outdated.K8sAPI, 0)
+	for key, val := range m {
+		gv := strings.Split(key, "/")
+		if len(gv) != 2 {
 			continue
 		}
-		if strings.Contains(line, apiLifecycleDeprecated) {
-			kind = findResource(line, []string{apiLifecycleDeprecated, "()", "{", "}", "func", "in", "major", "minor", "int", "*"})
-			if _, ok := apisMap[fmt.Sprintf("%s/%s", gv, kind)]; !ok {
-				apisMap[fmt.Sprintf("%s/%s", gv, kind)] = &outdated.K8sAPI{Group: group, Version: version, Kind: kind}
-			}
-			if scanner.Scan() {
-				version := findVersion(scanner.Text(), []string{"return"})
-				apisMap[fmt.Sprintf("%s/%s", gv, kind)].DeprecatedVersion = version
-			}
-			continue
+		group := gv[0]
+		version := gv[1]
+		asd, err := astReader.Analyze(val)
+		if err != nil {
+			return nil, err
 		}
-		if strings.Contains(line, apiLifecycleReplacement) {
-			kind = findResource(line, []string{apiLifecycleReplacement, "()", "{", "}", "func", "in", "schema.GroupVersionKind", "*"})
-			if _, ok := apisMap[fmt.Sprintf("%s/%s", gv, kind)]; !ok {
-				apisMap[fmt.Sprintf("%s/%s", gv, kind)] = &outdated.K8sAPI{Group: group, Version: version, Kind: kind}
+		var data *outdated.K8sAPI
+		for _, d := range asd {
+			gvk := filepath.Join(group, version, d.recv)
+			_, ok := gvmOutdatedAPI[gvk]
+			if !ok {
+				gvmOutdatedAPI[gvk] = &outdated.K8sAPI{Kind: d.recv, Group: group, Version: version}
 			}
-			if scanner.Scan() {
-				version := findReplacmentAPI(scanner.Text(), []string{"return", "Group", ":", "Version", "Kind"})
-				apisMap[fmt.Sprintf("%s/%s", gv, kind)].DeprecatedVersion = version
+			data = gvmOutdatedAPI[gvk]
+			switch d.methodName {
+			case apiLifecycleDeprecated:
+				data.DeprecatedVersion = getVersion(d.returnParams, false)
+			case apiLifecycleRemoved:
+				data.RemovedVersion = getVersion(d.returnParams, false)
+			case apiLifecycleReplacement:
+				data.ReplacementVersion = getVersion(d.returnParams, true)
 			}
-			continue
 		}
-		if strings.Contains(line, apiLifecycleRemoved) {
-			kind = findResource(line, []string{apiLifecycleRemoved, "()", "{", "}", "func", "in", "schema.GroupVersionKind", "*"})
-			if _, ok := apisMap[fmt.Sprintf("%s/%s", gv, kind)]; !ok {
-				apisMap[fmt.Sprintf("%s/%s", gv, kind)] = &outdated.K8sAPI{Group: group, Version: version, Kind: kind}
-			}
-			if scanner.Scan() {
-				version := findVersion(scanner.Text(), []string{"return"})
-				apisMap[fmt.Sprintf("%s/%s", gv, kind)].DeprecatedVersion = version
-			}
-			continue
-		}
+		outdatedArr = append(outdatedArr, data)
 	}
-	return nil
+	return outdatedArr, err
 }
 
-func findResource(line string, replacmentKeys []string) string {
-	for _, k := range replacmentKeys {
-		line = strings.ReplaceAll(line, k, "")
+func getVersion(nums []string, replacement bool) string {
+	var buffer bytes.Buffer
+
+	if !replacement {
+		buffer.WriteString("v")
 	}
-	return strings.TrimSpace(line)
+	for _, n := range nums {
+		buffer.WriteString(fmt.Sprintf("%s.", strings.Trim(n, `"`)))
+	}
+	return strings.TrimSuffix(buffer.String(), ".")
 }
 
-func findVersion(line string, replacmentKeys []string) string {
-	for _, k := range replacmentKeys {
-		line = strings.ReplaceAll(line, k, "")
-	}
-	verParts := strings.Split(line, ",")
-	if len(verParts) == 2 {
-		return fmt.Sprintf("v%s.%s", verParts[0], verParts[1])
-	}
-	return ""
-}
-
-func findReplacmentAPI(line string, replacmentKeys []string) string {
-	for _, l := range replacmentKeys {
-		line = strings.ReplaceAll(line, "", l)
-	}
-	apiParts := strings.Split(line, ",")
-	if len(apiParts) == 3 {
-		return fmt.Sprintf("%s.%s.%s", apiParts[0], apiParts[1], apiParts[2])
-	}
-	return ""
-}
-
-// Untar API lifecycle implemenation object data from k8s repository
+// Untar API lifecycle implementation object data from k8s repository
 func Untar(reader io.ReadCloser) (map[string]string, error) {
 	lifeCycleMap := make(map[string]string)
 	gz, err := gzip.NewReader(reader)
