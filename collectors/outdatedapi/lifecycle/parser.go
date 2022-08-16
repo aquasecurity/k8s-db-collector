@@ -101,8 +101,10 @@ func Untar(reader io.ReadCloser) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		_ = gz.Close()
+	}()
 	tarReader := tar.NewReader(gz)
-
 	for {
 		header, err := tarReader.Next()
 		if err == io.EOF {
