@@ -3,7 +3,6 @@ package outdated
 import (
 	"fmt"
 	"strings"
-	"github.com/hashicorp/go-version"
 )
 
 //OutdatedAPI object
@@ -23,12 +22,14 @@ type Gvk struct {
 
 //K8sAPI object
 type K8sAPI struct {
-	Description       string `json:"description"`
-	DeprecatedVersion string `json:"deprecated-version"`
-	RemovedVersion    string `json:"removed-version"`
-	Group             string `json:"group"`
-	Version           string `json:"version"`
-	Kind              string `json:"kind"`
+	Description        string `json:"description,omitempty"`
+	DeprecatedVersion  string `json:"deprecated-version"`
+	ReplacementVersion string `json:"replacement-api"`
+	RemovedVersion     string `json:"removed-version"`
+	Group              string `json:"group"`
+	Version            string `json:"version"`
+	Kind               string `json:"kind"`
+	Ref                string `json:"ref"`
 }
 
 //MergeMdSwaggerVersions merge swagger and marjdown collectors results
@@ -50,36 +51,14 @@ func MergeMdSwaggerVersions(objs []*OutdatedAPI, mDetails map[string]*OutdatedAP
 }
 
 //ValidateOutdatedAPI validate outdated data is complete
-func ValidateOutdatedAPI(K8sapis []K8sAPI) []K8sAPI {
-	apis := make([]K8sAPI, 0)
+func ValidateOutdatedAPI(K8sapis []*K8sAPI) ([]*K8sAPI, error) {
 	for _, ka := range K8sapis {
 		if len(ka.Version) == 0 || len(ka.Kind) == 0 || len(ka.Group) == 0 {
-			continue
+			return nil, fmt.Errorf("failed to get outdated API missing Version or Kind or Group")
 		}
-		if val,ok :=validVersion(ka.DeprecatedVersion); !ok {
-			ka.DeprecatedVersion = val
+		if len(ka.RemovedVersion) == 0 || len(ka.DeprecatedVersion) == 0 {
+			return nil, fmt.Errorf("failed to get outdated API missing RemovedVersion or DeprecatedVersion")
 		}
-		if val,ok := validVersion(ka.RemovedVersion); !ok {
-			ka.RemovedVersion = val
-		}
-		if len(ka.DeprecatedVersion) == 0 && len(ka.RemovedVersion) == 0 {
-			continue
-		}
-		if len(ka.Description) == 0 {
-			continue
-		}
-		apis = append(apis, ka)
 	}
-	return apis
-}
-
-func validVersion(v string) (string,bool) {
-	_,err:=version.NewVersion(v)
-	if err != nil { 
-		return "",false
-	}
-	if strings.HasPrefix(v, "v") {
-		return v,true
-	}
-	return fmt.Sprintf("v%s",v),false
+	return K8sapis, nil
 }

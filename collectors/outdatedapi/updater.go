@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"k8s-outdated/collectors"
+	"k8s-outdated/collectors/outdatedapi/lifecycle"
 	"k8s-outdated/collectors/outdatedapi/outdated"
 	"k8s-outdated/collectors/outdatedapi/utils"
 	"log"
@@ -12,8 +13,6 @@ import (
 
 	"golang.org/x/xerrors"
 
-	"k8s-outdated/collectors/outdatedapi/markdown"
-	"k8s-outdated/collectors/outdatedapi/swagger"
 	"os"
 )
 
@@ -54,20 +53,15 @@ type option func(*options)
 //Update latest outdated API list
 func (u Updater) Update() error {
 	log.Println("Fetching k8s outdated api data...")
-	// parse deprecate and removed versions from k8s swagger api
-	mDetails, err := swagger.NewOpenAPISpec().CollectOutdatedAPI(u.version)
+	apis, err := lifecycle.CollectLifCycleAPI()
 	if err != nil {
 		return err
 	}
-	// parse removed version from k8s deprecation mark down docs
-	objs, err := markdown.NewDeprecationGuide().CollectOutdatedAPI()
-	if err != nil {
-		return err
-	}
-	// merge swagger and markdown results
-	apis := outdated.MergeMdSwaggerVersions(objs, mDetails)
 	// validate outdated api data
-	validatedAPIs := outdated.ValidateOutdatedAPI(apis)
+	validatedAPIs, err := outdated.ValidateOutdatedAPI(apis)
+	if err != nil {
+		return err
+	}
 	if len(validatedAPIs) == 0 {
 		return fmt.Errorf("no outdated api data to publish")
 	}
