@@ -38,6 +38,9 @@ func CollectLifCycleAPI() ([]*outdated.K8sAPI, error) {
 		}
 	}()
 	m, err := Untar(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 	gvmOutdatedAPI := make(map[string]*outdated.K8sAPI)
 	outdatedArr := make([]*outdated.K8sAPI, 0)
 	for gv, source := range m {
