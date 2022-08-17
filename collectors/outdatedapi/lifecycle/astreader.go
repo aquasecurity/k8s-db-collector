@@ -1,9 +1,17 @@
 package lifecycle
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"strings"
+)
+
+const (
+	deprecatedTag  = "+k8s:prerelease-lifecycle-gen:deprecated="
+	removedTag     = "+k8s:prerelease-lifecycle-gen:removed="
+	replacementTag = "+k8s:prerelease-lifecycle-gen:replacement="
 )
 
 //AstReader read k8s source file and parse it
@@ -20,6 +28,82 @@ type AstData struct {
 	recv         string
 	methodName   string
 	returnParams []string
+}
+
+type AstObjComments struct {
+	Kind       string
+	Deprecated string
+	Removed    string
+	Replaced   string
+}
+
+//AnalyzeComments scan k8s types source file parse it generation comments and return Kind , deprecate,removed and replacements versions
+func (ar AstReader) AnalyzeComments(data string) ([]AstObjComments, error) {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, "src.go", data, parser.ParseComments)
+	if err != nil {
+		return nil, err
+	}
+	cmap := ast.NewCommentMap(fset, node, node.Comments)
+	filtersCommantMap := make(map[ast.Node][]*ast.CommentGroup)
+	for key, cm := range cmap {
+		for _, com := range cm[0].List {
+			if strings.Contains(com.Text, "+k8s:prerelease-lifecycle-gen:deprecated") {
+				filtersCommantMap[key] = cm
+			}
+		}
+	}
+	astComments := make([]AstObjComments, 0)
+	for key, vals := range filtersCommantMap {
+		a, ok := key.(*ast.GenDecl)
+		aComment := AstObjComments{}
+		if ok {
+			b, ok := a.Specs[0].(*ast.TypeSpec)
+			if ok {
+				aComment.Kind = b.Name.Name
+				for _, val := range vals {
+					for _, vl := range val.List {
+						if strings.Contains(vl.Text, deprecatedTag) {
+							tagValue, err := getTagValue(vl.Text, deprecatedTag)
+							if err != nil {
+								continue
+							}
+							aComment.Deprecated = tagValue
+							continue
+						}
+						if strings.Contains(vl.Text, removedTag) {
+							tagValue, err := getTagValue(vl.Text, removedTag)
+							if err != nil {
+								continue
+							}
+							aComment.Removed = tagValue
+							continue
+						}
+						if strings.Contains(vl.Text, replacementTag) {
+							tagValue, err := getTagValue(vl.Text, replacementTag)
+							if err != nil {
+								continue
+							}
+							aComment.Replaced = strings.ReplaceAll(tagValue, ",", ".")
+							continue
+						}
+					}
+				}
+			}
+			if len(aComment.Removed) != 0 && len(aComment.Deprecated) != 0 {
+				astComments = append(astComments, aComment)
+			}
+		}
+	}
+	return astComments, nil
+}
+
+func getTagValue(tagValue, tagKey string) (string, error) {
+	vals := strings.Split(tagValue, tagKey)
+	if len(vals) != 2 {
+		return "", fmt.Errorf("failed to parse tag values %s", tagValue)
+	}
+	return vals[1], nil
 }
 
 //Analyze scan k8s source file and return it method and return types data
