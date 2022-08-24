@@ -51,13 +51,15 @@ func MergeMdSwaggerVersions(objs []*OutdatedAPI, mDetails map[string]*OutdatedAP
 }
 
 //ValidateOutdatedAPI validate outdated data is complete
-func ValidateOutdatedAPI(K8sapis []*K8sAPI) ([]*K8sAPI, error) {
+func ValidateOutdatedAPI(K8sapis map[string]map[string]map[string]string) (map[string]map[string]map[string]string, error) {
 	for _, ka := range K8sapis {
-		if len(ka.Version) == 0 || len(ka.Kind) == 0 || len(ka.Group) == 0 {
+		if len(ka) == 0 {
 			return nil, fmt.Errorf("failed to get outdated API missing Version or Kind or Group")
 		}
-		if len(ka.RemovedVersion) == 0 || len(ka.DeprecatedVersion) == 0 {
-			return nil, fmt.Errorf("failed to get outdated API missing RemovedVersion or DeprecatedVersion")
+		for _, pa := range ka {
+			if len(pa) == 0 {
+				return nil, fmt.Errorf("failed to get outdated API missing Version or Kind or Group")
+			}
 		}
 	}
 	return K8sapis, nil

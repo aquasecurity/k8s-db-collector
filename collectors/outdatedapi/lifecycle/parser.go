@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"k8s-outdated/collectors/outdatedapi/outdated"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -26,7 +25,7 @@ const (
 )
 
 //CollectLifCycleAPI collect api info deprecation / removal and replacement info as implemented by designated APIs
-func CollectLifCycleAPI() ([]*outdated.K8sAPI, error) {
+func CollectLifCycleAPI() (map[string]map[string]map[string]string, error) {
 	resp, err := http.Get(k8sMasterReleaseTarBall)
 	if err != nil {
 		return nil, err
@@ -41,8 +40,7 @@ func CollectLifCycleAPI() ([]*outdated.K8sAPI, error) {
 	if err != nil {
 		return nil, err
 	}
-	gvmOutdatedAPI := make(map[string]*outdated.K8sAPI)
-	outdatedArr := make([]*outdated.K8sAPI, 0)
+	gvmOutdatedAPI := make(map[string]map[string]map[string]string)
 	for gv, source := range m {
 		group, version, err := getGroupVersion(gv)
 		if err != nil {
@@ -52,29 +50,28 @@ func CollectLifCycleAPI() ([]*outdated.K8sAPI, error) {
 		if err != nil {
 			return nil, err
 		}
-		var data *outdated.K8sAPI
 		for _, d := range asd {
-			gvk := filepath.Join(group, version, d.recv)
-			_, ok := gvmOutdatedAPI[gvk]
+			gv := filepath.Join(group, version)
+			_, ok := gvmOutdatedAPI[gv]
 			if !ok {
-				gvmOutdatedAPI[gvk] = &outdated.K8sAPI{Kind: d.recv, Group: group, Version: version}
+				gvmOutdatedAPI[gv] = make(map[string]map[string]string)
 			}
-			data = gvmOutdatedAPI[gvk]
+			if _, ok := gvmOutdatedAPI[gv][d.recv]; !ok {
+				gvmOutdatedAPI[gv][d.recv] = make(map[string]string)
+			}
 			switch d.methodName {
 			case apiLifecycleDeprecated:
-				data.DeprecatedVersion = getVersion(d.returnParams, false)
+				gvmOutdatedAPI[gv][d.recv]["deprecation_version"] = getVersion(d.returnParams, false)
 			case apiLifecycleRemoved:
-				data.RemovedVersion = getVersion(d.returnParams, false)
+				gvmOutdatedAPI[gv][d.recv]["removed_version"] = getVersion(d.returnParams, false)
 			case apiLifecycleReplacement:
-				data.ReplacementVersion = getVersion(d.returnParams, true)
+				gvmOutdatedAPI[gv][d.recv]["replacement_version"] = getVersion(d.returnParams, true)
+
 			}
-			data.Ref = fmt.Sprintf("%s/%s/%s", docsBaseUrl, gv, preReleaseLifeCycleFile)
+			gvmOutdatedAPI[gv][d.recv]["ref"] = fmt.Sprintf("%s/%s/%s", docsBaseUrl, gv, preReleaseLifeCycleFile)
 		}
 	}
-	for _, k8sOutdated := range gvmOutdatedAPI {
-		outdatedArr = append(outdatedArr, k8sOutdated)
-	}
-	return outdatedArr, err
+	return gvmOutdatedAPI, err
 }
 
 func getGroupVersion(key string) (string, string, error) {
