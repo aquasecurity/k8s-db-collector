@@ -25,6 +25,7 @@ func NewAstReader() AstReader {
 
 //AstData store k8s source ast data
 type AstData struct {
+	group        string
 	recv         string
 	methodName   string
 	returnParams []string
@@ -120,6 +121,9 @@ func (ar AstReader) Analyze(code string) ([]AstData, error) {
 		// Find Return Statements
 		case *ast.ReturnStmt:
 			ad.returnParams = ar.updateMethodReturnParams(x)
+			if len(ad.returnParams) == 3 {
+				ad.group = ad.returnParams[0]
+			}
 			ad, astDataArr = ar.updateAst(ad, astDataArr)
 			return true
 		// Find Functions
@@ -155,10 +159,11 @@ func (ar AstReader) updateAst(ad AstData, astDataArr []AstData) (AstData, []AstD
 
 func (ar AstReader) updateMethodReturnParams(x *ast.ReturnStmt) []string {
 	results := make([]string, 0)
+	//deprecated and removal
 	for _, val := range x.Results {
 		if k, ok := val.(*ast.BasicLit); ok {
 			results = append(results, k.Value)
-		} else {
+		} else { // replacement
 			if k, ok := val.(*ast.CompositeLit); ok {
 				for _, el := range k.Elts {
 					a := el.(ast.Expr).(*ast.KeyValueExpr)
