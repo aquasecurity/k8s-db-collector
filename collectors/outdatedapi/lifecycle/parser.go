@@ -43,7 +43,6 @@ func CollectLifCycleAPI() (map[string]map[string]map[string]string, error) {
 	gvmOutdatedAPI := make(map[string]map[string]map[string]string)
 	for gv, source := range m {
 		origGgroup, version, err := getGroupVersion(gv)
-		var group string
 		if err != nil {
 			return nil, err
 		}
@@ -51,16 +50,8 @@ func CollectLifCycleAPI() (map[string]map[string]map[string]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		var groupUpdated bool
+		group := GetGroup(asd, origGgroup)
 		for _, d := range asd {
-			group = origGgroup
-			if len(strings.TrimSpace(d.group)) != 0 && !groupUpdated {
-				newGroup := strings.TrimSuffix(fmt.Sprintf("%s.", strings.Trim(d.group, `"`)), ".")
-				if newGroup != group { //update group acording to replacement version
-					group = newGroup
-				}
-				groupUpdated = true
-			}
 			gv := filepath.Join(group, version)
 			_, ok := gvmOutdatedAPI[gv]
 			if !ok {
@@ -82,6 +73,18 @@ func CollectLifCycleAPI() (map[string]map[string]map[string]string, error) {
 		}
 	}
 	return gvmOutdatedAPI, err
+}
+
+func GetGroup(asd []AstData, origGgroup string) string {
+	for _, d := range asd {
+		if len(strings.TrimSpace(d.group)) != 0 {
+			newGroup := strings.TrimSuffix(fmt.Sprintf("%s.", strings.Trim(d.group, `"`)), ".")
+			if newGroup != origGgroup { //update group acording to replacement version
+				return newGroup
+			}
+		}
+	}
+	return origGgroup
 }
 
 func getGroupVersion(key string) (string, string, error) {
