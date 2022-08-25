@@ -51,6 +51,11 @@ func CollectLifCycleAPI() (map[string]map[string]map[string]string, error) {
 			return nil, err
 		}
 		for _, d := range asd {
+			if len(d.group) != 0 {
+				group = d.group
+			} else {
+				group = fmt.Sprintf("%s.k8s.io", group) //default group suffix
+			}
 			gv := filepath.Join(group, version)
 			_, ok := gvmOutdatedAPI[gv]
 			if !ok {
