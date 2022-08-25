@@ -42,7 +42,8 @@ func CollectLifCycleAPI() (map[string]map[string]map[string]string, error) {
 	}
 	gvmOutdatedAPI := make(map[string]map[string]map[string]string)
 	for gv, source := range m {
-		group, version, err := getGroupVersion(gv)
+		origGgroup, version, err := getGroupVersion(gv)
+		var group string
 		if err != nil {
 			return nil, err
 		}
@@ -50,12 +51,16 @@ func CollectLifCycleAPI() (map[string]map[string]map[string]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		//var groupUpdated bool
+		var groupUpdated bool
 		for _, d := range asd {
-			/*if len(strings.TrimSpace(d.group)) != 0 && !groupUpdated {
-				group = strings.TrimSuffix(fmt.Sprintf("%s.", strings.Trim(d.group, `"`)), ".")
+			group = origGgroup
+			if len(strings.TrimSpace(d.group)) != 0 && !groupUpdated {
+				newGroup := strings.TrimSuffix(fmt.Sprintf("%s.", strings.Trim(d.group, `"`)), ".")
+				if newGroup != group { //update group acording to replacement version
+					group = newGroup
+				}
 				groupUpdated = true
-			}*/
+			}
 			gv := filepath.Join(group, version)
 			_, ok := gvmOutdatedAPI[gv]
 			if !ok {
@@ -73,7 +78,7 @@ func CollectLifCycleAPI() (map[string]map[string]map[string]string, error) {
 				gvmOutdatedAPI[gv][d.recv]["replacement_version"] = getVersion(d.returnParams, true)
 
 			}
-			gvmOutdatedAPI[gv][d.recv]["ref"] = fmt.Sprintf("%s/%s/%s", docsBaseUrl, gv, preReleaseLifeCycleFile)
+			gvmOutdatedAPI[gv][d.recv]["ref"] = fmt.Sprintf("%s/%s/%s/%s", docsBaseUrl, origGgroup, version, preReleaseLifeCycleFile)
 		}
 	}
 	return gvmOutdatedAPI, err
