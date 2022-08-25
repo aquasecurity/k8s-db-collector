@@ -50,12 +50,12 @@ func CollectLifCycleAPI() (map[string]map[string]map[string]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		var groupUpdated bool
+		//var groupUpdated bool
 		for _, d := range asd {
-			if len(strings.TrimSpace(d.group)) != 0 && !groupUpdated {
+			/*if len(strings.TrimSpace(d.group)) != 0 && !groupUpdated {
 				group = strings.TrimSuffix(fmt.Sprintf("%s.", strings.Trim(d.group, `"`)), ".")
 				groupUpdated = true
-			}
+			}*/
 			gv := filepath.Join(group, version)
 			_, ok := gvmOutdatedAPI[gv]
 			if !ok {
@@ -84,7 +84,7 @@ func getGroupVersion(key string) (string, string, error) {
 	if len(gv) != 2 {
 		return "", "", fmt.Errorf("failed to find group version for key: %s", key)
 	}
-	return fmt.Sprintf("%s.k8s.io", gv[0]), gv[1], nil
+	return gv[0], gv[1], nil
 }
 
 func getVersion(nums []string, replacement bool) string {
