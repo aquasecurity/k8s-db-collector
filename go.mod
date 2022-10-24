@@ -3,8 +3,7 @@ module k8s-outdated
 go 1.18
 
 require (
-	github.com/hashicorp/go-version v1.6.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f
 )
 
