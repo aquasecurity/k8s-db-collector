@@ -65,27 +65,25 @@ func run() error {
 	var commitMsg string
 	switch *target {
 	case "k8s-api":
-		u := outdatedapi.NewUpdater()
-		if err := u.Update(); err != nil {
+		ui := outdatedapi.NewUpdater()
+		if err := ui.Update(); err != nil {
 			return fmt.Errorf("k8s outdated api update error: %w", err)
 		}
 		commitMsg = "k8s-outdated-api"
+		if err := u.SetLastUpdatedDate(*target, now); err != nil {
+			return err
+		}
 	case "k8s-vulndb":
 		u := cvedb.NewUpdater()
 		if err := u.Update(); err != nil {
 			return fmt.Errorf("k8s vulndb cves update error: %w", err)
 		}
 		commitMsg = "k8s-vulndb-cves"
+		if err := c.SetLastUpdatedDate(*target, now); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("unknown target")
-	}
-
-	if debug {
-		return nil
-	}
-
-	if err := u.SetLastUpdatedDate(*target, now); err != nil {
-		return err
 	}
 
 	log.Println("git status")
