@@ -71,7 +71,7 @@ func SetLastUpdatedDate(dist string, lastUpdatedDate time.Time) error {
 }
 
 func K8sCveDir() string {
-	return filepath.Join(CacheDir(), "db-data")
+	return filepath.Join(CacheDir(), "db-vuln-list")
 }
 
 func CacheDir() string {
