@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/aquasecurity/k8s-db-collector/collectors/cvedb"
+	c "github.com/aquasecurity/k8s-db-collector/collectors/cvedb/utils"
 	"github.com/aquasecurity/k8s-db-collector/collectors/outdatedapi"
 	u "github.com/aquasecurity/k8s-db-collector/collectors/outdatedapi/utils"
-	c "github.com/aquasecurity/k8s-db-collector/collectors/cvedb/utils"
 	"github.com/aquasecurity/vuln-list-update/git"
 	"github.com/aquasecurity/vuln-list-update/utils"
 	"golang.org/x/xerrors"
