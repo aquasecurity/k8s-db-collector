@@ -68,27 +68,44 @@ func ParseVulneDB(vulnDB []byte) (*K8sVulnDB, error) {
 			return nil, err
 		}
 		severity, score := utils.CvssVectorToScore(c.Cvss)
-		vulnerability := Vulnerability{
-			ID:              i["id"].(string),
-			Summary:         i["summary"].(string),
-			Urls:            []string{i["url"].(string), i["external_url"].(string)},
-			CreatedAt:       i["date_published"].(string),
-			AffectedVersion: c.AffectedVersion,
-			FixedVersion:    c.FixedVersion,
-			Description:     c.Description,
-			Component:       c.ComponentName,
-			Cvss:            c.Cvss,
-		}
-		if len(severity) > 0 {
-			vulnerability.Severity = severity
-			vulnerability.Score = score
-		}
+		id := i["id"].(string)
+		for _, mid := range getMultiIDs(id) {
+			vulnerability := Vulnerability{
+				ID:              mid,
+				Summary:         i["summary"].(string),
+				Urls:            []string{i["url"].(string), i["external_url"].(string)},
+				CreatedAt:       i["date_published"].(string),
+				AffectedVersion: c.AffectedVersion,
+				FixedVersion:    c.FixedVersion,
+				Description:     c.Description,
+				Component:       c.ComponentName,
+				Cvss:            c.Cvss,
+			}
+			if len(severity) > 0 {
+				vulnerability.Severity = severity
+				vulnerability.Score = score
+			}
 
-		vulnerabilities = append(vulnerabilities, vulnerability)
+			vulnerabilities = append(vulnerabilities, vulnerability)
+		}
 	}
 	return &K8sVulnDB{
 		Cves: vulnerabilities,
 	}, nil
+}
+
+func getMultiIDs(id string) []string {
+	var idsList []string
+	if strings.Contains(id, ",") {
+		idParts := strings.Split(id, ",")
+		for _, p := range idParts {
+			if strings.HasPrefix(strings.TrimSpace(p), "CVE-") {
+				idsList = append(idsList, strings.TrimSpace(p))
+			}
+		}
+		return idsList
+	}
+	return []string{id}
 }
 
 func AmendCveDoc(doc string) string {
