@@ -31,6 +31,8 @@ jobs:
       - name: Compile K8s-db-collector
         run: go build -o K8s-db-collector .
 
-      - if: always()
-        name: k8s-api
+      - name: k8s-api
         run: ./K8s-db-collector -target k8s-api
+      
+      - name: k8s vulndb cve list
+        run: ./K8s-db-collector -target k8s-vulndb

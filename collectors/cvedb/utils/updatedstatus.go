@@ -15,7 +15,7 @@ const (
 )
 
 var (
-	lastUpdatedFilePath = filepath.Join(K8sAPIDir(), lastUpdatedFile)
+	lastUpdatedFilePath = filepath.Join(K8sCveDir(), lastUpdatedFile)
 )
 
 type LastUpdated map[string]time.Time
@@ -70,12 +70,8 @@ func SetLastUpdatedDate(dist string, lastUpdatedDate time.Time) error {
 	return nil
 }
 
-func K8sAPIDir() string {
-	return filepath.Join(CacheDir(), "db-data")
-}
-
 func K8sCveDir() string {
-	return filepath.Join(CacheDir(), "k8s-cve")
+	return filepath.Join(CacheDir(), "db-data")
 }
 
 func CacheDir() string {

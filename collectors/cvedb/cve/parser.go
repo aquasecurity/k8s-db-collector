@@ -83,12 +83,14 @@ func ParseVulneDB(vulnDB []byte) (*K8sVulnDB, error) {
 			vulnerability.Severity = severity
 			vulnerability.Score = score
 		}
+
 		vulnerabilities = append(vulnerabilities, vulnerability)
 	}
 	return &K8sVulnDB{
 		Cves: vulnerabilities,
 	}, nil
 }
+
 func AmendCveDoc(doc string) string {
 	var lineWriter bytes.Buffer
 	docReader := strings.NewReader(doc)
