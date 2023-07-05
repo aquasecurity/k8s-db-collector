@@ -10,6 +10,7 @@ import (
 	"github.com/aquasecurity/k8s-db-collector/collectors/cvedb"
 	"github.com/aquasecurity/k8s-db-collector/collectors/outdatedapi"
 	u "github.com/aquasecurity/k8s-db-collector/collectors/outdatedapi/utils"
+	c "github.com/aquasecurity/k8s-db-collector/collectors/cvedb/utils"
 	"github.com/aquasecurity/vuln-list-update/git"
 	"github.com/aquasecurity/vuln-list-update/utils"
 	"golang.org/x/xerrors"
@@ -46,6 +47,9 @@ func run() error {
 	log.Printf("target repository is %s/%s\n", repoName, repoName)
 
 	dir := u.K8sAPIDir()
+	if repoName == "vuln-list-k8s" {
+		dir = c.K8sCveDir()
+	}
 	if _, err := gc.CloneOrPull(url, dir, "main", debug); err != nil {
 		return fmt.Errorf("clone or pull error: %w", err)
 	}
