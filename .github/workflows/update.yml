@@ -35,4 +35,4 @@ jobs:
         run: ./K8s-db-collector -target k8s-api
       
       - name: k8s vulndb cve list
-        run: ./K8s-db-collector -target k8s-vulndb
+        run: ./K8s-db-collector -target k8s-vulndb -repo vuln-list-k8s

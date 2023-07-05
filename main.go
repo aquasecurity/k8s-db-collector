@@ -18,11 +18,11 @@ import (
 const (
 	repoURL          = "https://%s@github.com/%s/%s.git"
 	defaultRepoOwner = "aquasecurity"
-	defaultRepoName  = "trivy-db-data"
 )
 
 var (
-	target = flag.String("target", "", "update target db (k8s-api,k8s-vulndb)")
+	target     = flag.String("target", "", "update target db (k8s-api,k8s-vulndb)")
+	githubRepo = flag.String("repo", "trivy-db-data", "github repo db (trivy-db-data,vuln-list-k8s)")
 )
 
 func main() {
@@ -38,7 +38,7 @@ func run() error {
 	debug := os.Getenv("VULN_LIST_DEBUG") != ""
 
 	repoOwner := utils.LookupEnv("REPOSITORY_OWNER", defaultRepoOwner)
-	repoName := utils.LookupEnv("REPOSITORY_NAME", defaultRepoName)
+	repoName := utils.LookupEnv("REPOSITORY_NAME", *githubRepo)
 	// Embed GitHub token to URL
 	githubToken := os.Getenv("GITHUB_TOKEN")
 	url := fmt.Sprintf(repoURL, githubToken, repoOwner, repoName)
