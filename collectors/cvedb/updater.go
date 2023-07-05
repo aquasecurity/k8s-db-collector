@@ -29,7 +29,7 @@ type Updater struct {
 // NewUpdater return new updater instance
 func NewUpdater(opts ...option) Updater {
 	o := &options{
-		k8sdDir:   utils.K8sAPIDir(),
+		k8sdDir:   utils.K8sCveDir(),
 		cveFolder: filepath.Join(collectors.MainFolder, cveFolder),
 		version:   version,
 	}
