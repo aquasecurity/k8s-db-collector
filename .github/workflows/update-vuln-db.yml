@@ -1,4 +1,4 @@
-name: K8s db collector
+name: K8s update vuln db
 on:
   schedule:
     - cron: "0 0 * * *" # Every night at midnight
@@ -30,9 +30,6 @@ jobs:
           git config --global user.name "GitHub Action"
       - name: Compile K8s-db-collector
         run: go build -o K8s-db-collector .
-
-      - name: k8s-api
-        run: ./K8s-db-collector -target k8s-api
       
       - name: k8s vulndb cve list
         run: ./K8s-db-collector -target k8s-vulndb -repo vuln-list-k8s
