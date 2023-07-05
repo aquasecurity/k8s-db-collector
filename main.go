@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	target = flag.String("target", "k8s-data", "update target db")
+	target = flag.String("target", "", "update target db (k8s-api,k8s-vulndb)")
 )
 
 func main() {
