@@ -18,7 +18,7 @@ import (
 const (
 	version        = "1.0.0"
 	k8sAPIFileName = "k8s-cve-list.json"
-	cveFolder      = "k8s-cves"
+	cveFolder      = "cves"
 )
 
 // Updater fetch k8s vulndb cve-list API Object
