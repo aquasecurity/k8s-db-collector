@@ -16,7 +16,6 @@ import (
 
 const (
 	paragraph = `^\*[\s\S]*\*$`
-	versions  = `\s*(\d+\.\d+\.\d+)\s*`
 	header    = `(^#{1,6}\s*[\S]+)`
 )
 
