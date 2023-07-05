@@ -15,8 +15,12 @@ Collect k8s deprecated and removed API information and save it in parsable forma
  - [kubernetes openapi-spec](https://raw.githubusercontent.com/kubernetes/kubernetes/master/api/openapi-spec/swagger.json)
  - [kubernetes api source code](https://github.com/kubernetes/kubernetes/tree/master/staging/src/k8s.io/api)
 
-## Data
-https://github.com/aquasecurity/trivy-db-data/
+## outdated API data
+https://github.com/aquasecurity/trivy-db-data
+
+## k8s vulnerability advisory
+
+https://github.com/aquasecurity/vuln-list-k8s
 
 ## Usage
 
