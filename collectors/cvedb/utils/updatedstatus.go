@@ -74,10 +74,6 @@ func K8sAPIDir() string {
 	return filepath.Join(CacheDir(), "db-data")
 }
 
-func K8sCveDir() string {
-	return filepath.Join(CacheDir(), "k8s-cve")
-}
-
 func CacheDir() string {
 	cacheDir, err := os.UserCacheDir()
 	if err != nil {

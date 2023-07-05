@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/aquasecurity/go-version/pkg/version"
@@ -83,12 +84,29 @@ func ParseVulneDB(vulnDB []byte) (*K8sVulnDB, error) {
 			vulnerability.Severity = severity
 			vulnerability.Score = score
 		}
+
 		vulnerabilities = append(vulnerabilities, vulnerability)
 	}
+	sort.Sort(vulns(vulnerabilities))
 	return &K8sVulnDB{
 		Cves: vulnerabilities,
 	}, nil
 }
+
+type vulns []Vulnerability
+
+func (p vulns) Len() int {
+	return len(p)
+}
+
+func (p vulns) Less(i, j int) bool {
+	return p[i].ID < (p[j].ID)
+}
+
+func (p vulns) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
+}
+
 func AmendCveDoc(doc string) string {
 	var lineWriter bytes.Buffer
 	docReader := strings.NewReader(doc)

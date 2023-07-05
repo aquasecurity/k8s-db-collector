@@ -29,7 +29,7 @@ type Updater struct {
 // NewUpdater return new updater instance
 func NewUpdater(opts ...option) Updater {
 	o := &options{
-		k8sdDir:   utils.K8sCveDir(),
+		k8sdDir:   utils.K8sAPIDir(),
 		cveFolder: filepath.Join(collectors.MainFolder, cveFolder),
 		version:   version,
 	}
@@ -58,10 +58,6 @@ func (u Updater) Update() error {
 	if len(vulnDB.Cves) == 0 {
 		return fmt.Errorf("no vulndb cve-list data to publish")
 	}
-	data, err := json.Marshal(vulnDB)
-	if err != nil {
-		return err
-	}
 	fp := filepath.Join(u.k8sdDir, u.cveFolder)
 	log.Printf("Remove k8s vulndb cves directory %s", fp)
 	if err := os.RemoveAll(fp); err != nil {
@@ -70,13 +66,19 @@ func (u Updater) Update() error {
 	if err := os.MkdirAll(fp, 0755); err != nil {
 		return fmt.Errorf("mkdir error: %w", err)
 	}
-	filePath := filepath.Join(fp, k8sAPIFileName)
-	var prettyJSON bytes.Buffer
-	if err := json.Indent(&prettyJSON, data, "", "\t"); err != nil {
-		return fmt.Errorf("failed ro format json: %w", err)
-	}
-	if err = os.WriteFile(filePath, prettyJSON.Bytes(), 0644); err != nil {
-		return xerrors.Errorf("write error: %w", err)
+	for _, cve := range vulnDB.Cves {
+		data, err := json.Marshal(cve)
+		if err != nil {
+			return err
+		}
+		var prettyJSON bytes.Buffer
+		if err := json.Indent(&prettyJSON, data, "", "\t"); err != nil {
+			return fmt.Errorf("failed ro format json: %w", err)
+		}
+		filePath := filepath.Join(fp, fmt.Sprintf("%s.json", cve.ID))
+		if err = os.WriteFile(filePath, prettyJSON.Bytes(), 0644); err != nil {
+			return xerrors.Errorf("write error: %w", err)
+		}
 	}
 
 	return nil
