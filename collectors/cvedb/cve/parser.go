@@ -37,7 +37,7 @@ type K8sVulnDB struct {
 	Cves []Vulnerability
 }
 
-func ParseVulneDB(vulnDB []byte) (*K8sVulnDB, error) {
+func ParseVulnDB(vulnDB []byte) (*K8sVulnDB, error) {
 	var db map[string]interface{}
 	err := json.Unmarshal(vulnDB, &db)
 	if err != nil {
