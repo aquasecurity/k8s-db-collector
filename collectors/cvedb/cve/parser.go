@@ -5,7 +5,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
+
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/aquasecurity/go-version/pkg/version"
 	"github.com/aquasecurity/k8s-db-collector/collectors/cvedb/utils"
@@ -158,47 +161,69 @@ func AmendCveDoc(doc string) string {
 	return lineWriter.String()
 }
 
-func ValidateCveData(cves []Vulnerability) {
+func ValidateCveData(cves []Vulnerability) error {
+	var result error
 	for _, cve := range cves {
-		// validate id
+		newCve := isNewCve(cve.ID)
 		if len(cve.ID) == 0 {
-			fmt.Printf("\nid is mssing on cve #%s", cve.ID)
+			result = multierror.Append(result, fmt.Errorf("\nid is mssing on cve #%s", cve.ID))
 		}
 		if len(cve.CreatedAt) == 0 {
-			fmt.Printf("\nCreatedAt is mssing on cve #%s", cve.ID)
+			result = multierror.Append(result, fmt.Errorf("\nCreatedAt is mssing on cve #%s", cve.ID))
 		}
 		if len(cve.Summary) == 0 {
-			fmt.Printf("\nSummary is mssing on cve #%s", cve.ID)
+			result = multierror.Append(result, fmt.Errorf("\nSummary is mssing on cve #%s", cve.ID))
 		}
-		if len(strings.TrimPrefix(cve.Component, upstreamRepo)) == 0 {
-			fmt.Printf("\nComponent is mssing on cve #%s", cve.ID)
+		if newCve && len(strings.TrimPrefix(cve.Component, upstreamRepo)) == 0 {
+			result = multierror.Append(result, fmt.Errorf("\nComponent is mssing on cve #%s", cve.ID))
 		}
-		if len(cve.Description) == 0 {
-			fmt.Printf("\nDescription is mssing on cve #%s", cve.ID)
+		if newCve && len(cve.Description) == 0 {
+			result = multierror.Append(result, fmt.Errorf("\nDescription is mssing on cve #%s", cve.ID))
 		}
-		if len(cve.AffectedVersion) > 0 {
+		if newCve && len(cve.AffectedVersion) == 0 {
+			result = multierror.Append(result, fmt.Errorf("\nFixedVersion is missing on cve #%s", cve.ID))
+		}
+		if newCve && len(cve.AffectedVersion) > 0 {
 			for _, v := range cve.AffectedVersion {
 				_, err := version.Parse(v.From)
 				if err != nil {
-					fmt.Printf("\nAffectedVersion From %s is invalid on cve #%s", v.From, cve.ID)
+					result = multierror.Append(result, fmt.Errorf("\nAffectedVersion From %s is invalid on cve #%s", v.From, cve.ID))
 				}
 				_, err = version.Parse(v.To)
 				if err != nil {
-					fmt.Printf("\nAffectedVersion To %s is invalid on cve #%s", v.To, cve.ID)
+					result = multierror.Append(result, fmt.Errorf("\nAffectedVersion To %s is invalid on cve #%s", v.To, cve.ID))
 				}
 			}
 		}
 
-		if len(cve.FixedVersion) > 0 {
+		if newCve && len(cve.FixedVersion) == 0 {
+			result = multierror.Append(result, fmt.Errorf("\nFixedVersion is missing on cve #%s", cve.ID))
+		}
+
+		if newCve && len(cve.FixedVersion) > 0 {
 			for _, v := range cve.FixedVersion {
 				_, err := version.Parse(v.Fixed)
 				if err != nil {
-					fmt.Printf("\nFixedVersion Fixed %s is invalid on cve #%s", v.From, cve.ID)
+					result = multierror.Append(result, fmt.Errorf("\nFixedVersion Fixed %s is invalid on cve #%s", v.From, cve.ID))
 				}
 			}
 		}
 		if len(cve.Urls) == 0 {
-			fmt.Printf("\nUrls is mssing on cve #%s", cve.ID)
+			result = multierror.Append(result, fmt.Errorf("\nUrls is mssing on cve #%s", cve.ID))
 		}
 	}
+	return result
+}
+
+func isNewCve(cveID string) bool {
+	cveParts := strings.Split(cveID, "-")
+	if len(cveParts) > 1 {
+		if cveParts[0] != "CVE" {
+			return false
+		}
+		if year, err := strconv.Atoi(cveParts[1]); err == nil {
+			return year >= 2023
+		}
+	}
+	return false
 }

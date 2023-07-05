@@ -18,5 +18,13 @@ func Collect() (*K8sVulnDB, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ParseVulnDB(bodyBytes)
+	vulndbCves, err := ParseVulnDB(bodyBytes)
+	if err != nil {
+		return nil, err
+	}
+	err = ValidateCveData(vulndbCves.Cves)
+	if err != nil {
+		return nil, err
+	}
+	return vulndbCves, nil
 }

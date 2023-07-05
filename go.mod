@@ -1,6 +1,6 @@
 module github.com/aquasecurity/k8s-db-collector
 
-go 1.18
+go 1.20
 
 require (
 	github.com/aquasecurity/go-version v0.0.0-20210121072130-637058cfe492
@@ -12,6 +12,7 @@ require (
 
 require (
 	github.com/goark/errs v1.1.0 // indirect
+	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-runewidth v0.0.12 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
@@ -30,6 +31,7 @@ require (
 require (
 	github.com/aquasecurity/vuln-list-update v0.0.0-20210902160608-378edf0454ff
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/hashicorp/go-multierror v1.1.1
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
