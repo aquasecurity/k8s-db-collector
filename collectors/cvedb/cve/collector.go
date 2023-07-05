@@ -18,6 +18,5 @@ func Collect() (*K8sVulnDB, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ParseVulneDB(bodyBytes)
-
+	return ParseVulnDB(bodyBytes)
 }
