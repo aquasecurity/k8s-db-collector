@@ -21,7 +21,7 @@ const (
 	cveFolder      = "k8s-cves"
 )
 
-// Updater fetch k8s outdated API Object
+// Updater fetch k8s vulndb cve-list API Object
 type Updater struct {
 	*options
 }
@@ -56,7 +56,7 @@ func (u Updater) Update() error {
 		return err
 	}
 	if len(vulnDB.Cves) == 0 {
-		return fmt.Errorf("no outdated api data to publish")
+		return fmt.Errorf("no vulndb cve-list data to publish")
 	}
 	data, err := json.Marshal(vulnDB)
 	if err != nil {
