@@ -1,6 +1,6 @@
 module github.com/aquasecurity/k8s-db-collector
 
-go 1.20
+go 1.19
 
 require (
 	github.com/aquasecurity/go-version v0.0.0-20210121072130-637058cfe492
