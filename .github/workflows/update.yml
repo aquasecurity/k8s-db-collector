@@ -1,7 +1,7 @@
-name: (K8s-db-collector) repo
+name: K8s db collector
 on:
   schedule:
-    - cron: "0 0 * * 0" # Sunday midnight
+    - cron: "0 0 * * *" # Every night at midnight
   workflow_dispatch:
 
 jobs:
