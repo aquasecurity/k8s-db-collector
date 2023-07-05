@@ -1,13 +1,17 @@
-module k8s-outdated
+module github.com/aquasecurity/k8s-db-collector
 
 go 1.18
 
 require (
+	github.com/aquasecurity/go-version v0.0.0-20210121072130-637058cfe492
+	github.com/goark/go-cvss v1.6.6
 	github.com/stretchr/testify v1.8.2
+	github.com/yuin/goldmark v1.5.4
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f
 )
 
 require (
+	github.com/goark/errs v1.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-runewidth v0.0.12 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
@@ -16,8 +20,8 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/spf13/afero v1.2.2 // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
-	golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
+	golang.org/x/text v0.6.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
 	moul.io/http2curl v1.0.0 // indirect

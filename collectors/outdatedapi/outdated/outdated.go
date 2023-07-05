@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-//ValidateOutdatedAPI validate outdated data is complete
+// ValidateOutdatedAPI validate outdated data is complete
 func ValidateOutdatedAPI(K8sapis map[string]map[string]map[string]string) (map[string]map[string]map[string]string, error) {
 	for _, ka := range K8sapis {
 		if len(ka) == 0 {

@@ -24,7 +24,7 @@ const (
 	apiLifecycleRemoved     = "APILifecycleRemoved"
 )
 
-//CollectLifCycleAPI collect api info deprecation / removal and replacement info as implemented by designated APIs
+// CollectLifCycleAPI collect api info deprecation / removal and replacement info as implemented by designated APIs
 func CollectLifCycleAPI() (map[string]map[string]map[string]string, error) {
 	resp, err := http.Get(k8sMasterReleaseTarBall)
 	if err != nil {

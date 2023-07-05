@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"k8s-outdated/collectors"
-	"k8s-outdated/collectors/outdatedapi/lifecycle"
-	"k8s-outdated/collectors/outdatedapi/outdated"
-	"k8s-outdated/collectors/outdatedapi/utils"
+	"github.com/aquasecurity/k8s-db-collector/collectors"
+	"github.com/aquasecurity/k8s-db-collector/collectors/outdatedapi/lifecycle"
+	"github.com/aquasecurity/k8s-db-collector/collectors/outdatedapi/outdated"
+	"github.com/aquasecurity/k8s-db-collector/collectors/outdatedapi/utils"
 	"log"
 	"path/filepath"
 
@@ -50,7 +50,7 @@ type options struct {
 
 type option func(*options)
 
-//Update latest outdated API list
+// Update latest outdated API list
 func (u Updater) Update() error {
 	log.Println("Fetching k8s outdated api data...")
 	apis, err := lifecycle.CollectLifCycleAPI()
