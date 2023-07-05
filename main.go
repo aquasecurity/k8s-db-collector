@@ -3,14 +3,16 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/aquasecurity/vuln-list-update/git"
-	"github.com/aquasecurity/vuln-list-update/utils"
-	"golang.org/x/xerrors"
-	"k8s-outdated/collectors/outdatedapi"
-	u "k8s-outdated/collectors/outdatedapi/utils"
 	"log"
 	"os"
 	"time"
+
+	"github.com/aquasecurity/k8s-db-collector/collectors/cvedb"
+	"github.com/aquasecurity/k8s-db-collector/collectors/outdatedapi"
+	u "github.com/aquasecurity/k8s-db-collector/collectors/outdatedapi/utils"
+	"github.com/aquasecurity/vuln-list-update/git"
+	"github.com/aquasecurity/vuln-list-update/utils"
+	"golang.org/x/xerrors"
 )
 
 const (
@@ -20,7 +22,7 @@ const (
 )
 
 var (
-	target = flag.String("target", "k8s-api", "update target (k8s-api)")
+	target = flag.String("target", "", "update target db (k8s-api,k8s-vulndb)")
 )
 
 func main() {
@@ -64,6 +66,12 @@ func run() error {
 			return fmt.Errorf("k8s outdated api update error: %w", err)
 		}
 		commitMsg = "k8s-outdated-api"
+	case "k8s-vulndb":
+		u := cvedb.NewUpdater()
+		if err := u.Update(); err != nil {
+			return fmt.Errorf("k8s vulndb cves update error: %w", err)
+		}
+		commitMsg = "k8s-vulndb-cves"
 	default:
 		return fmt.Errorf("unknown target")
 	}

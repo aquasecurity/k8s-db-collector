@@ -14,16 +14,16 @@ const (
 	replacementTag = "+k8s:prerelease-lifecycle-gen:replacement="
 )
 
-//AstReader read k8s source file and parse it
+// AstReader read k8s source file and parse it
 type AstReader struct {
 }
 
-//NewAstReader instantiate new AST reader
+// NewAstReader instantiate new AST reader
 func NewAstReader() AstReader {
 	return AstReader{}
 }
 
-//AstData store k8s source ast data
+// AstData store k8s source ast data
 type AstData struct {
 	group        string
 	recv         string
@@ -38,7 +38,7 @@ type AstObjComments struct {
 	Replaced   string
 }
 
-//AnalyzeComments scan k8s types source file parse it generation comments and return Kind , deprecate,removed and replacements versions
+// AnalyzeComments scan k8s types source file parse it generation comments and return Kind , deprecate,removed and replacements versions
 func (ar AstReader) AnalyzeComments(data string) ([]AstObjComments, error) {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, "src.go", data, parser.ParseComments)
@@ -107,7 +107,7 @@ func getTagValue(tagValue, tagKey string) (string, error) {
 	return vals[1], nil
 }
 
-//Analyze scan k8s source file and return it method and return types data
+// Analyze scan k8s source file and return it method and return types data
 func (ar AstReader) Analyze(code string) ([]AstData, error) {
 	astDataArr := make([]AstData, 0)
 	fset := token.NewFileSet()
@@ -166,7 +166,7 @@ func (ar AstReader) updateMethodReturnParams(x *ast.ReturnStmt) []string {
 		} else { // replacement
 			if k, ok := val.(*ast.CompositeLit); ok {
 				for _, el := range k.Elts {
-					a := el.(ast.Expr).(*ast.KeyValueExpr)
+					a := el.(ast.Expr).(*ast.KeyValueExpr) // nolint:gosimple
 					results = append(results, a.Value.(*ast.BasicLit).Value)
 				}
 			}
