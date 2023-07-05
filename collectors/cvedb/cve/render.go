@@ -21,7 +21,7 @@ import (
 var _ renderer.Renderer = &JSONRenderer{}
 
 const (
-	upstreamRepo = "github.com/kubernetes/"
+	upstreamRepo = "k8s.io/"
 )
 
 type JSONRenderer struct {
