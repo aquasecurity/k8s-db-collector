@@ -1,7 +1,7 @@
 package lifecycle
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,7 +23,7 @@ func TestAnalyze(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			code, err := ioutil.ReadFile(tt.dataPath)
+			code, err := os.ReadFile(tt.dataPath)
 			assert.NoError(t, err)
 			assert.NoError(t, err)
 			got, err := NewAstReader().Analyze(string(code))

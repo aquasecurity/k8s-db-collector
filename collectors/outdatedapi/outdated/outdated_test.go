@@ -2,7 +2,7 @@ package outdated
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,7 +21,7 @@ func TestValidateOutdatedAPI(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fdata, err := ioutil.ReadFile(tt.dataPath)
+			fdata, err := os.ReadFile(tt.dataPath)
 			assert.NoError(t, err)
 			var outdatedAPI map[string]map[string]map[string]string
 			err = json.Unmarshal(fdata, &outdatedAPI)

@@ -6,7 +6,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -129,7 +128,11 @@ func Untar(reader io.ReadCloser) (map[string]string, error) {
 		if info.Name() == preReleaseLifeCycleFile {
 			uname := strings.ReplaceAll(header.Name, fmt.Sprintf("/%s", preReleaseLifeCycleFile), "")
 			sname := strings.Split(uname, k8sapiSeperator)
-			c, err := ioutil.ReadAll(tarReader)
+			c, err := io.ReadAll(tarReader)
+			if err != nil {
+				return nil, err
+			}
+
 			if err != nil {
 				return nil, err
 			}
