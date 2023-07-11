@@ -3,7 +3,8 @@
 
 [![Go Report Card][report-card-img]][report-card]
 [![License][license-img]][license]
-[![k8s-db-collector repo](https://github.com/aquasecurity/k8s-db-collector/actions/workflows/update.yml/badge.svg)](https://github.com/aquasecurity/k8s-db-collecotr/actions/workflows/update.yml)
+[![K8s update vuln db](https://github.com/aquasecurity/k8s-db-collector/actions/workflows/update-vuln-db.yml/badge.svg)](https://github.com/aquasecurity/k8s-db-collector/actions/workflows/update-vuln-db.yml)
+[![K8s update outdated api](https://github.com/aquasecurity/k8s-db-collector/actions/workflows/update-outdates-api-db.yml/badge.svg)](https://github.com/aquasecurity/k8s-db-collector/actions/workflows/update-outdates-api-db.yml)
 
 [report-card-img]: https://goreportcard.com/badge/github.com/aquasecurity/k8s-db-collector
 [report-card]: https://goreportcard.com/report/github.com/aquasecurity/k8s-db-collector
