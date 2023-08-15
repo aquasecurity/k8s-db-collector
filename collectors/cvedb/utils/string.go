@@ -100,3 +100,14 @@ func CvssVectorToScore(vector string) (string, float64) {
 	}
 	return bm.Severity().String(), bm.Score()
 }
+
+func ExtractVersions(version string) (string, string) {
+	for _, c := range []string{"controller-manager, kubelet, apiserver, kubectl"} {
+		version = strings.TrimSpace(strings.ReplaceAll(version, c, ""))
+	}
+	versionParts := strings.Split(version, "-")
+	if len(versionParts) == 2 {
+		return TrimString(versionParts[0], []string{"v", "V", "-"}), TrimString(versionParts[1], []string{"v", "V", "-"})
+	}
+	return strings.ReplaceAll(version, "-", ""), ""
+}

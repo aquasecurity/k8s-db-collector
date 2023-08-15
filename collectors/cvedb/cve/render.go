@@ -20,8 +20,11 @@ import (
 
 var _ renderer.Renderer = &JSONRenderer{}
 
-const (
-	upstreamRepo = "k8s.io/"
+var (
+	upstreamRepo = map[string]string{
+		"k8s.io/":     "controller-manager, kubelet, apiserver, kubectl",
+		"sigs.k8s.io": "secrets-store-csi-driver",
+	}
 )
 
 type JSONRenderer struct {
@@ -405,16 +408,16 @@ func (*JSONRenderer) AddOptions(...renderer.Option) {
 }
 
 type Content struct {
-	Description     string    `json:"description,omitempty"`
-	ComponentName   string    `json:"component_name,omitempty"`
-	AffectedVersion []Version `json:"affected_version,omitempty"`
-	FixedVersion    []Version `json:"fixed_version,omitempty"`
-	Cvss            string    `json:"cvss,omitempty"`
+	Description     string     `json:"description,omitempty"`
+	ComponentName   string     `json:"component_name,omitempty"`
+	AffectedVersion []*Version `json:"affected_version,omitempty"`
+	FixedVersion    []*Version `json:"fixed_version,omitempty"`
+	Cvss            string     `json:"cvss,omitempty"`
 }
 
 func docToCve(document *Node) (*Content, error) {
-	affectedVersion := make([]Version, 0)
-	fixedVersion := make([]Version, 0)
+	affectedVersion := make([]*Version, 0)
+	fixedVersion := make([]*Version, 0)
 	var description strings.Builder
 	var parseAffected, parseFixed bool
 	var compName string
@@ -496,19 +499,21 @@ func docToCve(document *Node) (*Content, error) {
 		Description:     description.String(),
 		AffectedVersion: deDupVersions(affectedVersion),
 		FixedVersion:    deDupVersions(fixedVersion),
-		ComponentName:   fmt.Sprintf("%s%s", upstreamRepo, compName),
+		ComponentName:   compName,
 		Cvss:            adi.Cvss,
 	}, nil
 }
 
 type Version struct {
-	From  string `json:"from,omitempty"`
-	To    string `json:"to,omitempty"`
-	Fixed string `json:"fixed,omitempty"`
+	Introduced   string `json:"introduced,omitempty"`
+	Fixed        string `json:"fixed,omitempty"`
+	LastAffected string `json:"last_affected,omitempty"`
+	Limit        string `json:"limit,omitempty"`
+	FixedIndex   int    `json:"-"`
 }
 
-func extractAffectedVersionsList(node *Node) ([]Version, string) {
-	versions := make([]Version, 0)
+func extractAffectedVersionsList(node *Node) ([]*Version, string) {
+	versions := make([]*Version, 0)
 	var compName string
 	initialIndex := 1
 	if len(node.Content) == 1 {
@@ -520,31 +525,31 @@ func extractAffectedVersionsList(node *Node) ([]Version, string) {
 			compName, from = extractNameVersion(node.Content[i-1].Text)
 			sVer = sanitizeVersion(from)
 		}
-		v := Version{}
+		v := &Version{}
 		if _, err := version.Parse(sVer); err == nil {
-			v.From = sVer
+			v.Introduced = sVer
 		}
 		_, to = extractNameVersion(node.Content[i].Text)
 		sanitazedTo := sanitizeVersion(to)
-		if _, err := version.Parse(sanitazedTo); err == nil && len(v.From) == 0 {
-			v.From = sanitazedTo
+		if _, err := version.Parse(sanitazedTo); err == nil && len(v.Introduced) == 0 {
+			v.Introduced = sanitazedTo
 		}
-		v.To = sanitazedTo
+		//v.To = sanitazedTo
 		versions = append(versions, v)
 	}
 
 	return versions, compName
 }
 
-func extractFixedVersionsList(node *Node) []Version {
-	versions := make([]Version, 0)
+func extractFixedVersionsList(node *Node) []*Version {
+	versions := make([]*Version, 0)
 	if len(node.Content) > 0 {
 		for i := 0; i < len(node.Content); i++ {
 			var fixed string
 			_, fixed = extractNameVersion(node.Content[i].Text)
 			fixed = sanitizeVersion(fixed)
 			if _, err := version.Parse(fixed); err == nil {
-				v := Version{
+				v := &Version{
 					Fixed: sanitizeVersion(fixed),
 				}
 				versions = append(versions, v)
@@ -554,14 +559,14 @@ func extractFixedVersionsList(node *Node) []Version {
 	return versions
 }
 
-func extractFixedVersions(node *Node) []Version {
-	versions := make([]Version, 0)
+func extractFixedVersions(node *Node) []*Version {
+	versions := make([]*Version, 0)
 
 	if len(node.Content) > 2 {
 		for i := 2; i < len(node.Content); i++ {
 			fixed := sanitizeVersion(node.Content[i].Text)
 			if _, err := version.Parse(fixed); err == nil {
-				v := Version{
+				v := &Version{
 					Fixed: sanitizeVersion(fixed),
 				}
 				versions = append(versions, v)
@@ -608,14 +613,7 @@ func extractNameVersion(nameVersion string) (string, string) {
 
 func addionalDataFromDescription(description string) AdditionalFields {
 	cvss := lookForCvssInDesc(description)
-	component := lookForComponentInDesc(description, []string{
-		"kube-controller-manager",
-		"kubelet",
-		"etcd",
-		"kube-apiserver",
-		"kubectl",
-	},
-	)
+	component := lookForComponentInDesc(description)
 	return AdditionalFields{
 		Cvss:      cvss,
 		Component: component,
@@ -628,7 +626,7 @@ type AdditionalFields struct {
 	Component string
 }
 
-func lookForComponentInDesc(description string, coreCompArr []string) string {
+func lookForComponentInDesc(description string) string {
 	compIndex := strings.Index(description, "This bug affects")
 	if compIndex != -1 {
 		splittedComp := strings.Split(description[compIndex:], ".")
@@ -636,12 +634,7 @@ func lookForComponentInDesc(description string, coreCompArr []string) string {
 			return strings.ToLower(strings.ReplaceAll(splittedComp[0], "This bug affects ", ""))
 		}
 	}
-	for _, c := range coreCompArr {
-		if strings.Contains(strings.ToLower(description), c) {
-			return c
-		}
-	}
-	return ""
+	return getComponentFromDescription(description)
 }
 func lookForCvssInDesc(description string) string {
 	cvssIndex := strings.Index(description, "CVSS:")
@@ -654,13 +647,29 @@ func lookForCvssInDesc(description string) string {
 	return ""
 }
 
-func deDupVersions(versions []Version) []Version {
-	dedupVersion := make([]Version, 0)
+func deDupVersions(versions []*Version) []*Version {
+	dedupVersion := make([]*Version, 0)
 	versionMap := make(map[string]Version)
 	for _, v := range versions {
-		if _, ok := versionMap[fmt.Sprintf("%s-%s-%s", v.Fixed, v.From, v.To)]; !ok {
+		if _, ok := versionMap[fmt.Sprintf("%s-%s", v.Fixed, v.Introduced)]; !ok {
 			dedupVersion = append(dedupVersion, v)
 		}
 	}
 	return dedupVersion
+}
+
+func getComponentFromDescription(description string) string {
+	coreCompArr := []string{
+		"controller-manager",
+		"kubelet",
+		"etcd",
+		"apiserver",
+		"kubectl",
+	}
+	for _, c := range coreCompArr {
+		if strings.Contains(strings.ToLower(description), c) {
+			return c
+		}
+	}
+	return ""
 }
