@@ -408,11 +408,11 @@ func (*JSONRenderer) AddOptions(...renderer.Option) {
 }
 
 type Content struct {
-	Description     string     `json:"description,omitempty"`
-	ComponentName   string     `json:"component_name,omitempty"`
-	AffectedVersion []*Version `json:"affected_version,omitempty"`
-	FixedVersion    []*Version `json:"fixed_version,omitempty"`
-	Cvss            string     `json:"cvss,omitempty"`
+	Description      string     `json:"description,omitempty"`
+	ComponentName    string     `json:"component_name,omitempty"`
+	AffectedVersions []*Version `json:"affected_version,omitempty"`
+	FixedVersions    []*Version `json:"fixed_version,omitempty"`
+	Cvss             string     `json:"cvss,omitempty"`
 }
 
 func docToCve(document *Node) (*Content, error) {
@@ -496,11 +496,11 @@ func docToCve(document *Node) (*Content, error) {
 		fmt.Println("dup")
 	}
 	return &Content{
-		Description:     description.String(),
-		AffectedVersion: deDupVersions(affectedVersion),
-		FixedVersion:    deDupVersions(fixedVersion),
-		ComponentName:   compName,
-		Cvss:            adi.Cvss,
+		Description:      description.String(),
+		AffectedVersions: deDupVersions(affectedVersion),
+		FixedVersions:    deDupVersions(fixedVersion),
+		ComponentName:    compName,
+		Cvss:             adi.Cvss,
 	}, nil
 }
 
