@@ -23,16 +23,16 @@ const (
 )
 
 type Vulnerability struct {
-	ID              string    `json:"id,omitempty"`
-	CreatedAt       string    `json:"created_at,omitempty"`
-	Summary         string    `json:"summary,omitempty"`
-	Component       string    `json:"component,omitempty"`
-	Description     string    `json:"description,omitempty"`
+	ID              string     `json:"id,omitempty"`
+	CreatedAt       string     `json:"created_at,omitempty"`
+	Summary         string     `json:"summary,omitempty"`
+	Component       string     `json:"component,omitempty"`
+	Description     string     `json:"description,omitempty"`
 	AffectedVersion []*Version `json:"affected_version,omitempty"`
 	FixedVersion    []*Version `json:"-"`
-	Urls            []string  `json:"urls,omitempty"`
-	CvssV3          Cvssv3    `json:"cvssv3,omitempty"`
-	Severity        string    `json:"severity,omitempty"`
+	Urls            []string   `json:"urls,omitempty"`
+	CvssV3          Cvssv3     `json:"cvssv3,omitempty"`
+	Severity        string     `json:"severity,omitempty"`
 }
 
 type K8sVulnDB struct {
@@ -178,10 +178,10 @@ func ValidateCveData(cves []*Vulnerability) error {
 					result = multierror.Append(result, fmt.Errorf("\nAffectedVersion From %s is invalid on cve #%s", v.Introduced, cve.ID))
 				}
 				/*
-				_, err = version.Parse(v.To)
-				if err != nil {
-					result = multierror.Append(result, fmt.Errorf("\nAffectedVersion To %s is invalid on cve #%s", v.To, cve.ID))
-				}*/
+					_, err = version.Parse(v.To)
+					if err != nil {
+						result = multierror.Append(result, fmt.Errorf("\nAffectedVersion To %s is invalid on cve #%s", v.To, cve.ID))
+					}*/
 			}
 		}
 

@@ -13,6 +13,7 @@ import (
 const (
 	k8svulnDBURL = "https://kubernetes.io/docs/reference/issues-security/official-cve-feed/index.json"
 	mitreURL     = "https://cveawg.mitre.org/api/cve"
+	cveList      = "https://www.cve.org/"
 )
 
 func Collect() (*K8sVulnDB, error) {
@@ -28,7 +29,8 @@ func Collect() (*K8sVulnDB, error) {
 }
 
 type MitreCVE struct {
-	Containers Containers
+	CveMetadata CveMetadata
+	Containers  Containers
 }
 
 type Containers struct {
@@ -40,6 +42,7 @@ type Containers struct {
 				Status          string
 				Version         string
 				LessThanOrEqual string
+				LessThan        string
 			}
 		}
 		Descriptions []struct {
@@ -48,9 +51,13 @@ type Containers struct {
 	}
 }
 
+type CveMetadata struct {
+	CveId string
+}
+
 func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) {
 	currentVuln := &Vulnerability{}
-	if strings.HasPrefix(externalURL, "https://www.cve.org/") {
+	if strings.HasPrefix(externalURL, cveList) {
 		response, err := http.Get(fmt.Sprintf("%s/%s", mitreURL, cveID))
 		if err == nil {
 			cveInfo, err := io.ReadAll(response.Body)
@@ -60,6 +67,9 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 				if err == nil {
 					versions := make([]*Version, 0)
 					var component string
+					if cve.CveMetadata.CveId == "CVE-2020-8566" {
+						fmt.Println("here")
+					}
 					for _, a := range cve.Containers.Cna.Affected {
 						if len(component) == 0 {
 							if a.Product == a.Vendor {
@@ -70,22 +80,29 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 						}
 						for _, v := range a.Versions {
 							if v.Status == "affected" {
+								var to, fixed string
+								origFrom := v.Version
 								from := v.Version
-								var to string
-								if from != "unspecified" {
-									if strings.Contains(from, "-") {
-										from, to = utils.ExtractVersions(from)
-									}
-									if from == "0" {
-										from = "0.0.0"
-									}
-								} else {
+								if origFrom == "0" {
 									from = "0.0.0"
-									to = utils.TrimString(v.LessThanOrEqual, []string{"v", "V", "-"})
+								}
+								if origFrom == "unspecified" && len(strings.TrimSpace(v.LessThanOrEqual)) > 0 {
+									to, _ = utils.ExtractVersions(utils.TrimString(v.LessThanOrEqual, []string{"v", "V"}))
+									from = strings.TrimSpace(fmt.Sprintf("%s.%s", to[:strings.LastIndex(to, ".")], "0"))
+								} else if origFrom == "unspecified" && len(strings.TrimSpace(v.LessThan)) > 0 {
+									tempFrom := utils.TrimString(v.LessThan, []string{"v", "V"})
+									from = strings.TrimSpace(fmt.Sprintf("%s.%s", tempFrom[:strings.LastIndex(tempFrom, ".")], "0"))
+									fixed = tempFrom
+								} else {
+									from, to = utils.ExtractVersions(utils.TrimString(from, []string{"v", "V"}))
 								}
 								ver := &Version{Introduced: from}
 								if len(to) > 0 {
+									to = utils.FindVersion(to)
 									ver.LastAffected = to
+								}
+								if len(fixed) > 0 {
+									ver.Fixed = fixed
 								}
 								versions = append(versions, ver)
 							}
@@ -138,7 +155,7 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 				vuln.Description = currentVuln.Description
 			}
 			updateVulns(currentVuln, vuln)
-			if len(currentVuln.AffectedVersion) == 0 {
+			if len(currentVuln.AffectedVersion) > 0 {
 				vuln.AffectedVersion = currentVuln.AffectedVersion
 			}
 			fullVulnerabilities = append(fullVulnerabilities, vuln)
@@ -152,38 +169,29 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 }
 
 func updateVulns(currVuln *Vulnerability, tc *Vulnerability) {
-	if tc.ID == "CVE-2023-2431" {
-		fmt.Println("stop")
-	}
-	intro := make([]string, 0)
 	tempMap := make(map[string]*Version)
-	zeroVersionIndex := 0
-	for _, v := range tc.AffectedVersion {
-		if v.Introduced == "0.0.0" {
-			intro = append(intro, tc.FixedVersion[zeroVersionIndex].Fixed)
-			zeroVersionIndex++
-			continue
-		}
-		tempMap[v.Introduced] = v
-	}
-	for index, v := range currVuln.AffectedVersion {
-		if v.Introduced == "0.0.0" {
-			continue
-		}
-		if va, ok := tempMap[v.Introduced]; ok {
-			va.Fixed = tc.FixedVersion[index].Fixed
-		}
-	}
-	zeroVersionIndex = 0
-	for _, v := range currVuln.AffectedVersion {
-		if _, ok := tempMap[utils.TrimString(v.Introduced,[]string{"v","V"})]; ok {
+	versionZeroFixed := make([]string, 0)
+	for index, v := range tc.AffectedVersion {
+		if len(tc.FixedVersion) > index {
+			v.Fixed = tc.FixedVersion[index].Fixed
 			if v.Introduced != "0.0.0" {
-				continue
+				tempMap[v.Introduced] = v
+			} else {
+				versionZeroFixed = append(versionZeroFixed, v.Fixed)
 			}
-			if len(intro) > zeroVersionIndex {
-				v.Fixed = intro[zeroVersionIndex]
+		}
+	}
+	fixedVersionIndex := 0
+	for _, v := range currVuln.AffectedVersion {
+		if v.Introduced == "0.0.0" {
+			if len(versionZeroFixed) > fixedVersionIndex {
+				v.Fixed = versionZeroFixed[fixedVersionIndex]
+				fixedVersionIndex++
 			}
-			zeroVersionIndex++
+		} else {
+			if val, ok := tempMap[v.Introduced]; ok {
+				v.Fixed = val.Fixed
+			}
 		}
 	}
 }

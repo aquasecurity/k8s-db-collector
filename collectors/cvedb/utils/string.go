@@ -2,10 +2,12 @@ package utils
 
 import (
 	"fmt"
-	"github.com/aquasecurity/go-version/pkg/version"
-	"github.com/goark/go-cvss/v3/metric"
+
 	"regexp"
 	"strings"
+
+	version "github.com/aquasecurity/go-pep440-version"
+	"github.com/goark/go-cvss/v3/metric"
 )
 
 func TrimString(version string, trimValues []string) string {
@@ -101,13 +103,50 @@ func CvssVectorToScore(vector string) (string, float64) {
 	return bm.Severity().String(), bm.Score()
 }
 
-func ExtractVersions(version string) (string, string) {
-	for _, c := range []string{"controller-manager, kubelet, apiserver, kubectl"} {
-		version = strings.TrimSpace(strings.ReplaceAll(version, c, ""))
+func ExtractVersions(versionString string) (string, string) {
+	if strings.HasPrefix(strings.TrimSpace(versionString), "<=") {
+		tv := strings.ReplaceAll(strings.TrimSpace(versionString), "<=", "")
+		return strings.TrimSpace(fmt.Sprintf("%s.%s", tv[:strings.LastIndex(tv, ".")], "0")), tv
 	}
-	versionParts := strings.Split(version, "-")
+	if strings.HasPrefix(strings.TrimSpace(versionString), "<") {
+		tv := strings.ReplaceAll(strings.TrimSpace(versionString), "<", "")
+		return strings.TrimSpace(fmt.Sprintf("%s.%s", tv[:strings.LastIndex(tv, ".")], "0")), ""
+	}
+	validVersion := make([]string, 0)
+	for _, c := range []string{"controller-manager, kubelet, apiserver, kubectl", "-"} {
+		versionString = strings.TrimSpace(strings.ReplaceAll(versionString, c, ""))
+	}
+	versionParts := strings.Split(versionString, " ")
+	for _, p := range versionParts {
+		candidate, err := version.Parse(p)
+		if err != nil {
+			continue
+		}
+		validVersion = append(validVersion, candidate.String())
+	}
+
+	if len(validVersion) == 2 {
+		return strings.TrimSpace(validVersion[0]), strings.TrimSpace(validVersion[1])
+	}
+	if len(validVersion) == 1 {
+		return strings.TrimSpace(validVersion[0]), ""
+	}
+	return versionString, ""
+}
+
+func FindVersion(versionString string) string {
+	versionParts := strings.Split(versionString, " ")
+	if len(versionParts) == 1 {
+		return strings.TrimSpace(versionString)
+	}
 	if len(versionParts) == 2 {
-		return TrimString(versionParts[0], []string{"v", "V", "-"}), TrimString(versionParts[1], []string{"v", "V", "-"})
+		for _, p := range versionParts {
+			candidate, err := version.Parse(p)
+			if err != nil {
+				continue
+			}
+			return strings.TrimSpace(candidate.String())
+		}
 	}
-	return strings.ReplaceAll(version, "-", ""), ""
+	return versionString
 }
