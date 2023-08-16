@@ -164,10 +164,10 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 			fullVulnerabilities = append(fullVulnerabilities, vuln)
 		}
 	}
-	/*err = ValidateCveData(fullVulnerabilities)
+	err = ValidateCveData(fullVulnerabilities)
 	if err != nil {
 		return nil, err
-	}*/
+	}
 	return &K8sVulnDB{fullVulnerabilities}, nil
 }
 
