@@ -220,7 +220,7 @@ func isNewCve(cveID string) bool {
 func upstreamRepoByName(component string) string {
 	for key, components := range upstreamRepo {
 		for _, c := range strings.Split(components, ",") {
-			if strings.TrimSpace(c) == component {
+			if strings.TrimSpace(c) == strings.ToLower(component) {
 				return key
 			}
 		}

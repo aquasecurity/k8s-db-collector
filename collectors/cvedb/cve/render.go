@@ -22,7 +22,7 @@ var _ renderer.Renderer = &JSONRenderer{}
 
 var (
 	upstreamRepo = map[string]string{
-		"k8s.io/":     "controller-manager, kubelet, apiserver, kubectl",
+		"k8s.io":      "controller-manager, kubelet, apiserver, kubectl,kubernetes",
 		"sigs.k8s.io": "secrets-store-csi-driver",
 	}
 )

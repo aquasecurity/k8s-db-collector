@@ -67,16 +67,9 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 				if err == nil {
 					versions := make([]*Version, 0)
 					var component string
-					if cve.CveMetadata.CveId == "CVE-2020-8566" {
-						fmt.Println("here")
-					}
 					for _, a := range cve.Containers.Cna.Affected {
 						if len(component) == 0 {
-							if a.Product == a.Vendor {
-								component = fmt.Sprintf("%s/%s", strings.ToLower(a.Vendor), strings.ToLower(a.Product))
-							} else {
-								component = a.Product
-							}
+							component = a.Product
 						}
 						for _, v := range a.Versions {
 							if v.Status == "affected" {
@@ -86,25 +79,31 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 								if origFrom == "0" {
 									from = "0.0.0"
 								}
-								if origFrom == "unspecified" && len(strings.TrimSpace(v.LessThanOrEqual)) > 0 {
+								switch {
+								case origFrom == "unspecified" && len(strings.TrimSpace(v.LessThanOrEqual)) > 0:
 									to, _ = utils.ExtractVersions(utils.TrimString(v.LessThanOrEqual, []string{"v", "V"}))
 									from = strings.TrimSpace(fmt.Sprintf("%s.%s", to[:strings.LastIndex(to, ".")], "0"))
-								} else if origFrom == "unspecified" && len(strings.TrimSpace(v.LessThan)) > 0 {
+								case origFrom == "unspecified" && len(strings.TrimSpace(v.LessThan)) > 0:
 									tempFrom := utils.TrimString(v.LessThan, []string{"v", "V"})
 									from = strings.TrimSpace(fmt.Sprintf("%s.%s", tempFrom[:strings.LastIndex(tempFrom, ".")], "0"))
 									fixed = tempFrom
-								} else {
+								case strings.HasPrefix(strings.TrimSpace(origFrom), "prior to"):
+									fixed = strings.TrimSpace(strings.TrimPrefix(origFrom, "prior to"))
+									from = utils.TrimString(fixed, []string{"v", "V"})
+									from = strings.TrimSpace(fmt.Sprintf("%s.%s", from[:strings.LastIndex(from, ".")], "0"))
+								case strings.HasSuffix(strings.TrimSpace(origFrom), ".x"):
+									from = utils.TrimString(origFrom, []string{"v", "V"})
+									from = strings.TrimSpace(fmt.Sprintf("%s.%s", from[:strings.LastIndex(from, ".")], "0"))
+									to = from
+								default:
 									from, to = utils.ExtractVersions(utils.TrimString(from, []string{"v", "V"}))
 								}
-								ver := &Version{Introduced: from}
-								if len(to) > 0 {
-									to = utils.FindVersion(to)
-									ver.LastAffected = to
+								if strings.Count(from, ".") == 1 || strings.Count(to, ".") == 1 {
+									continue
 								}
-								if len(fixed) > 0 {
-									ver.Fixed = fixed
-								}
+								ver := &Version{Introduced: from, Fixed: fixed, LastAffected: to}
 								versions = append(versions, ver)
+
 							}
 						}
 					}
@@ -116,11 +115,10 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 				}
 			}
 		}
-		if currentVuln.Component == "kubernetes/kubernetes" {
+		if currentVuln.Component == "kubernetes" {
 			if v := getComponentFromDescription(currentVuln.Description); v != "" {
 				currentVuln.Component = v
 			}
-
 		}
 	}
 	return currentVuln, nil
@@ -146,10 +144,15 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 			if err != nil {
 				return nil, err
 			}
-			if av := upstreamRepoByName(strings.TrimPrefix(vuln.Component, "kube-")); av == "" {
-				vuln.Component = fmt.Sprintf("%s/%s", upstreamRepoByName(strings.TrimPrefix(currentVuln.Component, "kube-")), strings.TrimPrefix(currentVuln.Component, "kube-"))
+			if len(vuln.Component) == 0 || strings.Contains(currentVuln.Component, "n/a") {
+				continue
+			}
+			upstreamPrefix := upstreamRepoByName(strings.TrimPrefix(vuln.Component, "kube-"))
+			if upstreamPrefix != "" {
+				vuln.Component = strings.ToLower(fmt.Sprintf("%s/%s", upstreamPrefix, strings.TrimPrefix(vuln.Component, "kube-")))
 			} else {
-				vuln.Component = fmt.Sprintf("%s/%s", av, strings.TrimPrefix(currentVuln.Component, "kube-"))
+				av := upstreamRepoByName(strings.TrimPrefix(currentVuln.Component, "kube-"))
+				vuln.Component = strings.ToLower(fmt.Sprintf("%s/%s", av, strings.TrimPrefix(currentVuln.Component, "kube-")))
 			}
 			if len(currentVuln.Description) > 0 {
 				vuln.Description = currentVuln.Description
