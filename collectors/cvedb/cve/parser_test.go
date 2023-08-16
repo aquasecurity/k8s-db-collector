@@ -2,6 +2,7 @@ package cve
 
 import (
 	"encoding/json"
+	//"fmt"
 	"os"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 func Test_ParseVulneDB(t *testing.T) {
 	b, err := os.ReadFile("./testdata/k8s-db.json")
 	assert.NoError(t, err)
-	kvd, err := ParseVulnDB(b)
+	kvd, err := ParseVulnDBData(b)
 	assert.NoError(t, err)
 	err = ValidateCveData(kvd.Cves)
 	assert.NoError(t, err)

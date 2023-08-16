@@ -29,6 +29,7 @@ require (
 )
 
 require (
+	github.com/aquasecurity/go-pep440-version v0.0.0-20210121094942-22b2f8951d46
 	github.com/aquasecurity/vuln-list-update v0.0.0-20210902160608-378edf0454ff
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/hashicorp/go-multierror v1.1.1

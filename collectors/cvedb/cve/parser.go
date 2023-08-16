@@ -23,78 +23,66 @@ const (
 )
 
 type Vulnerability struct {
-	ID              string    `json:"id,omitempty"`
-	CreatedAt       string    `json:"created_at,omitempty"`
-	Summary         string    `json:"summary,omitempty"`
-	Component       string    `json:"component,omitempty"`
-	Description     string    `json:"description,omitempty"`
-	AffectedVersion []Version `json:"affected_version,omitempty"`
-	FixedVersion    []Version `json:"fixed_version,omitempty"`
-	Urls            []string  `json:"urls,omitempty"`
-	Cvss            string    `json:"cvss,omitempty"`
-	Severity        string    `json:"severity,omitempty"`
-	Score           float64   `json:"score,omitempty"`
+	ID              string     `json:"id,omitempty"`
+	CreatedAt       string     `json:"created_at,omitempty"`
+	Summary         string     `json:"summary,omitempty"`
+	Component       string     `json:"component,omitempty"`
+	Description     string     `json:"description,omitempty"`
+	AffectedVersion []*Version `json:"affected_version,omitempty"`
+	FixedVersion    []*Version `json:"-"`
+	Urls            []string   `json:"urls,omitempty"`
+	CvssV3          Cvssv3     `json:"cvssv3,omitempty"`
+	Severity        string     `json:"severity,omitempty"`
 }
 
 type K8sVulnDB struct {
-	Cves []Vulnerability
+	Cves []*Vulnerability
 }
 
-func ParseVulnDB(vulnDB []byte) (*K8sVulnDB, error) {
-	var db map[string]interface{}
-	err := json.Unmarshal(vulnDB, &db)
+type Cvssv3 struct {
+	Vector string
+	Score  float64
+}
+
+func ParseVulnItem(item interface{}, mid string) (*Vulnerability, error) {
+	gm := goldmark.New(
+		goldmark.WithExtensions(
+			extension.GFM, // GitHub flavoured markdown.
+		),
+		goldmark.WithParserOptions(
+			parser.WithAttribute(), // Enables # headers {#custom-ids}.
+		),
+		goldmark.WithRenderer(NewRenderer()),
+	)
+	vulnDoc := new(bytes.Buffer)
+	i := item.(map[string]interface{})
+	contentText := i["content_text"].(string)
+	amendedDoc := AmendCveDoc(contentText)
+	err := gm.Convert([]byte(amendedDoc), vulnDoc)
 	if err != nil {
 		return nil, err
 	}
-	vulnerabilities := make([]Vulnerability, 0)
-	for _, item := range db["items"].([]interface{}) {
-		gm := goldmark.New(
-			goldmark.WithExtensions(
-				extension.GFM, // GitHub flavoured markdown.
-			),
-			goldmark.WithParserOptions(
-				parser.WithAttribute(), // Enables # headers {#custom-ids}.
-			),
-			goldmark.WithRenderer(NewRenderer()),
-		)
-		vulnDoc := new(bytes.Buffer)
-		i := item.(map[string]interface{})
-		contentText := i["content_text"].(string)
-		amendedDoc := AmendCveDoc(contentText)
-		err = gm.Convert([]byte(amendedDoc), vulnDoc)
-		if err != nil {
-			return nil, err
-		}
-		var c Content
-		err = json.Unmarshal(vulnDoc.Bytes(), &c)
-		if err != nil {
-			return nil, err
-		}
-		severity, score := utils.CvssVectorToScore(c.Cvss)
-		id := i["id"].(string)
-		for _, mid := range getMultiIDs(id) {
-			vulnerability := Vulnerability{
-				ID:              mid,
-				Summary:         i["summary"].(string),
-				Urls:            []string{i["url"].(string), i["external_url"].(string)},
-				CreatedAt:       i["date_published"].(string),
-				AffectedVersion: c.AffectedVersion,
-				FixedVersion:    c.FixedVersion,
-				Description:     c.Description,
-				Component:       c.ComponentName,
-				Cvss:            c.Cvss,
-			}
-			if len(severity) > 0 {
-				vulnerability.Severity = severity
-				vulnerability.Score = score
-			}
-
-			vulnerabilities = append(vulnerabilities, vulnerability)
-		}
+	var c Content
+	err = json.Unmarshal(vulnDoc.Bytes(), &c)
+	if err != nil {
+		return nil, err
 	}
-	return &K8sVulnDB{
-		Cves: vulnerabilities,
-	}, nil
+	severity, score := utils.CvssVectorToScore(c.Cvss)
+	vulnerability := Vulnerability{
+		ID:              mid,
+		Summary:         i["summary"].(string),
+		Urls:            []string{i["url"].(string), i["external_url"].(string)},
+		CreatedAt:       i["date_published"].(string),
+		AffectedVersion: c.AffectedVersion,
+		FixedVersion:    c.FixedVersion,
+		Description:     c.Description,
+		Component:       c.ComponentName,
+		CvssV3:          Cvssv3{Vector: c.Cvss, Score: score},
+	}
+	if len(severity) > 0 {
+		vulnerability.Severity = severity
+	}
+	return &vulnerability, nil
 }
 
 func getMultiIDs(id string) []string {
@@ -161,7 +149,7 @@ func AmendCveDoc(doc string) string {
 	return lineWriter.String()
 }
 
-func ValidateCveData(cves []Vulnerability) error {
+func ValidateCveData(cves []*Vulnerability) error {
 	var result error
 	for _, cve := range cves {
 		newCve := isNewCve(cve.ID)
@@ -174,7 +162,7 @@ func ValidateCveData(cves []Vulnerability) error {
 		if len(cve.Summary) == 0 {
 			result = multierror.Append(result, fmt.Errorf("\nSummary is mssing on cve #%s", cve.ID))
 		}
-		if newCve && len(strings.TrimPrefix(cve.Component, upstreamRepo)) == 0 {
+		if newCve && len(strings.TrimPrefix(cve.Component, upstreamRepoByName(cve.Component))) == 0 {
 			result = multierror.Append(result, fmt.Errorf("\nComponent is mssing on cve #%s", cve.ID))
 		}
 		if newCve && len(cve.Description) == 0 {
@@ -185,14 +173,15 @@ func ValidateCveData(cves []Vulnerability) error {
 		}
 		if newCve && len(cve.AffectedVersion) > 0 {
 			for _, v := range cve.AffectedVersion {
-				_, err := version.Parse(v.From)
+				_, err := version.Parse(v.Introduced)
 				if err != nil {
-					result = multierror.Append(result, fmt.Errorf("\nAffectedVersion From %s is invalid on cve #%s", v.From, cve.ID))
+					result = multierror.Append(result, fmt.Errorf("\nAffectedVersion From %s is invalid on cve #%s", v.Introduced, cve.ID))
 				}
-				_, err = version.Parse(v.To)
-				if err != nil {
-					result = multierror.Append(result, fmt.Errorf("\nAffectedVersion To %s is invalid on cve #%s", v.To, cve.ID))
-				}
+				/*
+					_, err = version.Parse(v.To)
+					if err != nil {
+						result = multierror.Append(result, fmt.Errorf("\nAffectedVersion To %s is invalid on cve #%s", v.To, cve.ID))
+					}*/
 			}
 		}
 
@@ -204,7 +193,7 @@ func ValidateCveData(cves []Vulnerability) error {
 			for _, v := range cve.FixedVersion {
 				_, err := version.Parse(v.Fixed)
 				if err != nil {
-					result = multierror.Append(result, fmt.Errorf("\nFixedVersion Fixed %s is invalid on cve #%s", v.From, cve.ID))
+					result = multierror.Append(result, fmt.Errorf("\nFixedVersion Fixed %s is invalid on cve #%s", v.Introduced, cve.ID))
 				}
 			}
 		}
@@ -226,4 +215,15 @@ func isNewCve(cveID string) bool {
 		}
 	}
 	return false
+}
+
+func upstreamRepoByName(component string) string {
+	for key, components := range upstreamRepo {
+		for _, c := range strings.Split(components, ",") {
+			if strings.TrimSpace(c) == strings.ToLower(component) {
+				return key
+			}
+		}
+	}
+	return ""
 }
