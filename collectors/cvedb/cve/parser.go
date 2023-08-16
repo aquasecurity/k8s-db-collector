@@ -23,16 +23,16 @@ const (
 )
 
 type Vulnerability struct {
-	ID              string     `json:"id,omitempty"`
-	CreatedAt       string     `json:"created_at,omitempty"`
-	Summary         string     `json:"summary,omitempty"`
-	Component       string     `json:"component,omitempty"`
-	Description     string     `json:"description,omitempty"`
-	AffectedVersion []*Version `json:"affected_version,omitempty"`
-	FixedVersion    []*Version `json:"-"`
-	Urls            []string   `json:"urls,omitempty"`
-	CvssV3          Cvssv3     `json:"cvssv3,omitempty"`
-	Severity        string     `json:"severity,omitempty"`
+	ID               string     `json:"id,omitempty"`
+	CreatedAt        string     `json:"created_at,omitempty"`
+	Summary          string     `json:"summary,omitempty"`
+	Component        string     `json:"component,omitempty"`
+	Description      string     `json:"description,omitempty"`
+	AffectedVersions []*Version `json:"affected_versions,omitempty"`
+	FixedVersions    []*Version `json:"-"`
+	Urls             []string   `json:"urls,omitempty"`
+	CvssV3           Cvssv3     `json:"cvssv3,omitempty"`
+	Severity         string     `json:"severity,omitempty"`
 }
 
 type K8sVulnDB struct {
@@ -69,15 +69,15 @@ func ParseVulnItem(item interface{}, mid string) (*Vulnerability, error) {
 	}
 	severity, score := utils.CvssVectorToScore(c.Cvss)
 	vulnerability := Vulnerability{
-		ID:              mid,
-		Summary:         i["summary"].(string),
-		Urls:            []string{i["url"].(string), i["external_url"].(string)},
-		CreatedAt:       i["date_published"].(string),
-		AffectedVersion: c.AffectedVersion,
-		FixedVersion:    c.FixedVersion,
-		Description:     c.Description,
-		Component:       c.ComponentName,
-		CvssV3:          Cvssv3{Vector: c.Cvss, Score: score},
+		ID:               mid,
+		Summary:          i["summary"].(string),
+		Urls:             []string{i["url"].(string), i["external_url"].(string)},
+		CreatedAt:        i["date_published"].(string),
+		AffectedVersions: c.AffectedVersions,
+		FixedVersions:    c.FixedVersions,
+		Description:      c.Description,
+		Component:        c.ComponentName,
+		CvssV3:           Cvssv3{Vector: c.Cvss, Score: score},
 	}
 	if len(severity) > 0 {
 		vulnerability.Severity = severity
@@ -168,29 +168,24 @@ func ValidateCveData(cves []*Vulnerability) error {
 		if newCve && len(cve.Description) == 0 {
 			result = multierror.Append(result, fmt.Errorf("\nDescription is mssing on cve #%s", cve.ID))
 		}
-		if newCve && len(cve.AffectedVersion) == 0 {
+		if newCve && len(cve.AffectedVersions) == 0 {
 			result = multierror.Append(result, fmt.Errorf("\nFixedVersion is missing on cve #%s", cve.ID))
 		}
-		if newCve && len(cve.AffectedVersion) > 0 {
-			for _, v := range cve.AffectedVersion {
+		if newCve && len(cve.AffectedVersions) > 0 {
+			for _, v := range cve.AffectedVersions {
 				_, err := version.Parse(v.Introduced)
 				if err != nil {
 					result = multierror.Append(result, fmt.Errorf("\nAffectedVersion From %s is invalid on cve #%s", v.Introduced, cve.ID))
 				}
-				/*
-					_, err = version.Parse(v.To)
-					if err != nil {
-						result = multierror.Append(result, fmt.Errorf("\nAffectedVersion To %s is invalid on cve #%s", v.To, cve.ID))
-					}*/
 			}
 		}
 
-		if newCve && len(cve.FixedVersion) == 0 {
+		if newCve && len(cve.FixedVersions) == 0 {
 			result = multierror.Append(result, fmt.Errorf("\nFixedVersion is missing on cve #%s", cve.ID))
 		}
 
-		if newCve && len(cve.FixedVersion) > 0 {
-			for _, v := range cve.FixedVersion {
+		if newCve && len(cve.FixedVersions) > 0 {
+			for _, v := range cve.FixedVersions {
 				_, err := version.Parse(v.Fixed)
 				if err != nil {
 					result = multierror.Append(result, fmt.Errorf("\nFixedVersion Fixed %s is invalid on cve #%s", v.Introduced, cve.ID))

@@ -111,7 +111,7 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 					if len(cve.Containers.Cna.Descriptions) > 0 {
 						currentVuln.Description = cve.Containers.Cna.Descriptions[0].Value
 					}
-					currentVuln.AffectedVersion = versions
+					currentVuln.AffectedVersions = versions
 				}
 			}
 		}
@@ -158,8 +158,8 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 				vuln.Description = currentVuln.Description
 			}
 			updateVulns(currentVuln, vuln)
-			if len(currentVuln.AffectedVersion) > 0 {
-				vuln.AffectedVersion = currentVuln.AffectedVersion
+			if len(currentVuln.AffectedVersions) > 0 {
+				vuln.AffectedVersions = currentVuln.AffectedVersions
 			}
 			fullVulnerabilities = append(fullVulnerabilities, vuln)
 		}
@@ -174,9 +174,9 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 func updateVulns(currVuln *Vulnerability, tc *Vulnerability) {
 	tempMap := make(map[string]*Version)
 	versionZeroFixed := make([]string, 0)
-	for index, v := range tc.AffectedVersion {
-		if len(tc.FixedVersion) > index {
-			v.Fixed = tc.FixedVersion[index].Fixed
+	for index, v := range tc.AffectedVersions {
+		if len(tc.FixedVersions) > index {
+			v.Fixed = tc.FixedVersions[index].Fixed
 			if v.Introduced != "0.0.0" {
 				tempMap[v.Introduced] = v
 			} else {
@@ -185,7 +185,7 @@ func updateVulns(currVuln *Vulnerability, tc *Vulnerability) {
 		}
 	}
 	fixedVersionIndex := 0
-	for _, v := range currVuln.AffectedVersion {
+	for _, v := range currVuln.AffectedVersions {
 		if v.Introduced == "0.0.0" {
 			if len(versionZeroFixed) > fixedVersionIndex {
 				v.Fixed = versionZeroFixed[fixedVersionIndex]
