@@ -2,7 +2,6 @@ package cve
 
 import (
 	"encoding/json"
-	//"fmt"
 	"os"
 	"testing"
 
