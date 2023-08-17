@@ -2,7 +2,6 @@ package cve
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"testing"
 
@@ -18,10 +17,7 @@ func Test_ParseVulneDB(t *testing.T) {
 	assert.NoError(t, err)
 	gotVulnDB, err := json.Marshal(kvd.Cves)
 	assert.NoError(t, err)
-	os.WriteFile("./testdata/expected-vulndb.json", gotVulnDB, 0644)
 	wantVulnDB, err := os.ReadFile("./testdata/expected-vulndb.json")
 	assert.NoError(t, err)
-	fmt.Println(string(wantVulnDB))
-	fmt.Println(string(gotVulnDB))
 	assert.Equal(t, string(wantVulnDB), string(gotVulnDB))
 }
