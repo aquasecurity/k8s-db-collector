@@ -25,9 +25,9 @@ const (
 type Vulnerability struct {
 	ID               string      `json:"id,omitempty"`
 	CreatedAt        string      `json:"created_at,omitempty"`
-	Summary          string      `json:"details,omitempty"`
+	Summary          string      `json:"summary,omitempty"`
 	Component        string      `json:"component,omitempty"`
-	Description      string      `json:"description,omitempty"`
+	Description      string      `json:"details,omitempty"`
 	AffectedVersions []*Version  `json:"-"`
 	Affected         []*Affected `json:"affected,omitempty"`
 	FixedVersions    []*Version  `json:"-"`
