@@ -14,6 +14,7 @@ const (
 	k8svulnDBURL = "https://kubernetes.io/docs/reference/issues-security/official-cve-feed/index.json"
 	mitreURL     = "https://cveawg.mitre.org/api/cve"
 	cveList      = "https://www.cve.org/"
+	semver       = "SEMVER"
 )
 
 func Collect() (*K8sVulnDB, error) {
@@ -161,6 +162,7 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 			if len(currentVuln.AffectedVersions) > 0 {
 				vuln.AffectedVersions = currentVuln.AffectedVersions
 			}
+			updateAffectedEvents(vuln)
 			fullVulnerabilities = append(fullVulnerabilities, vuln)
 		}
 	}
@@ -196,5 +198,32 @@ func updateVulns(currVuln *Vulnerability, tc *Vulnerability) {
 				v.Fixed = val.Fixed
 			}
 		}
+	}
+}
+
+func updateAffectedEvents(v *Vulnerability) {
+	for _, av := range v.AffectedVersions {
+		if len(av.Introduced) == 0 {
+			continue
+		}
+		if av.Introduced == "0.0.0" {
+			av.Introduced = "0"
+		}
+		events := make([]*Event, 0)
+		ranges := make([]*Range, 0)
+		if len(av.Introduced) > 0 {
+			events = append(events, &Event{Introduced: av.Introduced})
+		}
+		if len(av.Fixed) > 0 {
+			events = append(events, &Event{Fixed: av.Fixed})
+		}
+		if len(av.LastAffected) > 0 {
+			events = append(events, &Event{LastAffected: av.LastAffected})
+		}
+		ranges = append(ranges, &Range{
+			RangeType: semver,
+			Events:    events,
+		})
+		v.Affected = append(v.Affected, &Affected{Ranges: ranges})
 	}
 }

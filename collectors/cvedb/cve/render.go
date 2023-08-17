@@ -504,14 +504,6 @@ func docToCve(document *Node) (*Content, error) {
 	}, nil
 }
 
-type Version struct {
-	Introduced   string `json:"introduced,omitempty"`
-	Fixed        string `json:"fixed,omitempty"`
-	LastAffected string `json:"last_affected,omitempty"`
-	Limit        string `json:"limit,omitempty"`
-	FixedIndex   int    `json:"-"`
-}
-
 func extractAffectedVersionsList(node *Node) ([]*Version, string) {
 	versions := make([]*Version, 0)
 	var compName string
