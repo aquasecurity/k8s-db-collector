@@ -20,13 +20,6 @@ import (
 
 var _ renderer.Renderer = &JSONRenderer{}
 
-var (
-	upstreamRepo = map[string]string{
-		"k8s.io":      "controller-manager, kubelet, apiserver, kubectl,kubernetes",
-		"sigs.k8s.io": "secrets-store-csi-driver",
-	}
-)
-
 type JSONRenderer struct {
 	document *Node          // Root node
 	context  blockNodeStack // Track where we are in the structure of the document
@@ -484,7 +477,11 @@ func docToCve(document *Node) (*Content, error) {
 	}
 	desc := description.String()
 	adi := addionalDataFromDescription(desc)
-	if len(compName) == 0 {
+	if len(adi.Component) > 0 && (len(upstreamOrgByName(strings.TrimPrefix(compName, "-kube"))) == 0 || strings.ToLower(compName) == "kubernetes") {
+		compName = ""
+	}
+	if (len(compName) == 0 && len(adi.Component) > 0) ||
+		(len(compName) > 0 && len(adi.Component) > 0 && strings.Contains(compName, adi.Component)) {
 		compName = adi.Component
 	}
 	dver := deDupVersions(affectedVersion)
@@ -651,16 +648,12 @@ func deDupVersions(versions []*Version) []*Version {
 }
 
 func getComponentFromDescription(description string) string {
-	coreCompArr := []string{
-		"controller-manager",
-		"kubelet",
-		"etcd",
-		"apiserver",
-		"kubectl",
-	}
-	for _, c := range coreCompArr {
-		if strings.Contains(strings.ToLower(description), c) {
-			return c
+	for key, value := range upstreamRepoName {
+		if key == "kubernetes" {
+			continue
+		}
+		if strings.Contains(strings.ToLower(description), key) {
+			return value
 		}
 	}
 	return ""

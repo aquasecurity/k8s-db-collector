@@ -22,53 +22,6 @@ const (
 	header    = `(^#{1,6}\s*[\S]+)`
 )
 
-type Vulnerability struct {
-	ID               string      `json:"id,omitempty"`
-	CreatedAt        string      `json:"created_at,omitempty"`
-	Summary          string      `json:"summary,omitempty"`
-	Component        string      `json:"component,omitempty"`
-	Description      string      `json:"details,omitempty"`
-	AffectedVersions []*Version  `json:"-"`
-	Affected         []*Affected `json:"affected,omitempty"`
-	FixedVersions    []*Version  `json:"-"`
-	Urls             []string    `json:"references,omitempty"`
-	CvssV3           Cvssv3      `json:"cvssv3,omitempty"`
-	Severity         string      `json:"severity,omitempty"`
-}
-
-type K8sVulnDB struct {
-	Cves []*Vulnerability
-}
-
-type Cvssv3 struct {
-	Vector string
-	Score  float64
-}
-
-type Version struct {
-	Introduced   string `json:"introduced,omitempty"`
-	Fixed        string `json:"fixed,omitempty"`
-	LastAffected string `json:"last_affected,omitempty"`
-	Limit        string `json:"limit,omitempty"`
-	FixedIndex   int    `json:"-"`
-}
-
-type Affected struct {
-	Ranges []*Range `json:"ranges,omitempty"`
-}
-
-type Range struct {
-	Events    []*Event `json:"events,omitempty"`
-	RangeType string   `json:"type,omitempty"`
-}
-
-type Event struct {
-	Introduced   string `json:"introduced,omitempty"`
-	Fixed        string `json:"fixed,omitempty"`
-	LastAffected string `json:"last_affected,omitempty"`
-	Limit        string `json:"limit,omitempty"`
-}
-
 func ParseVulnItem(item interface{}, mid string) (*Vulnerability, error) {
 	gm := goldmark.New(
 		goldmark.WithExtensions(
@@ -187,7 +140,7 @@ func ValidateCveData(cves []*Vulnerability) error {
 		if len(cve.Summary) == 0 {
 			result = multierror.Append(result, fmt.Errorf("\nSummary is mssing on cve #%s", cve.ID))
 		}
-		if newCve && len(strings.TrimPrefix(cve.Component, upstreamRepoByName(cve.Component))) == 0 {
+		if newCve && len(strings.TrimPrefix(cve.Component, upstreamOrgByName(cve.Component))) == 0 {
 			result = multierror.Append(result, fmt.Errorf("\nComponent is mssing on cve #%s", cve.ID))
 		}
 		if newCve && len(cve.Description) == 0 {
@@ -237,8 +190,8 @@ func isNewCve(cveID string) bool {
 	return false
 }
 
-func upstreamRepoByName(component string) string {
-	for key, components := range upstreamRepo {
+func upstreamOrgByName(component string) string {
+	for key, components := range upstreamOrgName {
 		for _, c := range strings.Split(components, ",") {
 			if strings.TrimSpace(c) == strings.ToLower(component) {
 				return key
@@ -246,4 +199,11 @@ func upstreamRepoByName(component string) string {
 		}
 	}
 	return ""
+}
+
+func upstreamRepoByName(component string) string {
+	if val, ok := upstreamRepoName[component]; ok {
+		return val
+	}
+	return component
 }
