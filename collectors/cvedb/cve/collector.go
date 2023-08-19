@@ -148,12 +148,12 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 			if len(vuln.Component) == 0 || strings.Contains(currentVuln.Component, "n/a") {
 				continue
 			}
-			upstreamPrefix := upstreamRepoByName(strings.TrimPrefix(vuln.Component, "kube-"))
+			upstreamPrefix := upstreamOrgByName(strings.TrimPrefix(vuln.Component, "kube-"))
 			if upstreamPrefix != "" {
-				vuln.Component = strings.ToLower(fmt.Sprintf("%s/%s", upstreamPrefix, strings.TrimPrefix(vuln.Component, "kube-")))
+				vuln.Component = strings.ToLower(fmt.Sprintf("%s/%s", upstreamPrefix, upstreamRepoByName(strings.TrimPrefix(vuln.Component, "kube-"))))
 			} else {
-				av := upstreamRepoByName(strings.TrimPrefix(currentVuln.Component, "kube-"))
-				vuln.Component = strings.ToLower(fmt.Sprintf("%s/%s", av, strings.TrimPrefix(currentVuln.Component, "kube-")))
+				av := upstreamOrgByName(strings.TrimPrefix(currentVuln.Component, "kube-"))
+				vuln.Component = strings.ToLower(fmt.Sprintf("%s/%s", av, upstreamRepoByName(strings.TrimPrefix(currentVuln.Component, "kube-"))))
 			}
 			if len(currentVuln.Description) > 0 {
 				vuln.Description = currentVuln.Description
