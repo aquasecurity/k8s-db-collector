@@ -217,7 +217,7 @@ func updateAffectedEvents(v *Vulnerability) {
 		if len(av.Fixed) > 0 {
 			events = append(events, &Event{Fixed: av.Fixed})
 		}
-		if len(av.LastAffected) > 0 {
+		if len(av.LastAffected) > 0 && len(av.Fixed) == 0 {
 			events = append(events, &Event{LastAffected: av.LastAffected})
 		}
 		ranges = append(ranges, &Range{
