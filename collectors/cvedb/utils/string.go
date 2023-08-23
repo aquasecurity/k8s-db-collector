@@ -105,12 +105,18 @@ func CvssVectorToScore(vector string) (string, float64) {
 
 func ExtractVersions(versionString string, lessThenEqual string) (string, string) {
 	if strings.HasPrefix(strings.TrimSpace(versionString), "<=") {
-		tv := strings.ReplaceAll(strings.TrimSpace(versionString), "<=", "")
-		return strings.TrimSpace(fmt.Sprintf("%s.%s", tv[:strings.LastIndex(tv, ".")], "0")), tv
+		tv := strings.TrimSpace(strings.ReplaceAll(strings.TrimSpace(versionString), "<=", ""))
+		lIndex := strings.LastIndex(tv, ".")
+		if lIndex > -1 {
+			return strings.TrimSpace(fmt.Sprintf("%s.%s", tv[:lIndex], "0")), tv
+		}
 	}
 	if strings.HasPrefix(strings.TrimSpace(versionString), "<") {
 		tv := strings.ReplaceAll(strings.TrimSpace(versionString), "<", "")
-		return strings.TrimSpace(fmt.Sprintf("%s.%s", tv[:strings.LastIndex(tv, ".")], "0")), ""
+		lIndex := strings.LastIndex(tv, ".")
+		if lIndex > -1 {
+			return strings.TrimSpace(fmt.Sprintf("%s.%s", tv[:lIndex], "0")), ""
+		}
 	}
 	validVersion := make([]string, 0)
 	for _, c := range []string{"controller-manager, kubelet, apiserver, kubectl", "-"} {

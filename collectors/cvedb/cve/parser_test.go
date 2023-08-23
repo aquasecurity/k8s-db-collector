@@ -22,4 +22,5 @@ func Test_ParseVulneDB(t *testing.T) {
 	wantVulnDB, err := os.ReadFile("./testdata/expected-vulndb.json")
 	assert.NoError(t, err)
 	assert.Equal(t, string(wantVulnDB), string(gotVulnDB))
+
 }
