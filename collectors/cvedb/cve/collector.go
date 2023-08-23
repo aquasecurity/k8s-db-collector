@@ -44,6 +44,7 @@ type Containers struct {
 				Version         string
 				LessThanOrEqual string
 				LessThan        string
+				VersionType     string
 			}
 		}
 		Descriptions []struct {
@@ -76,17 +77,19 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 							if v.Status == "affected" {
 								var to, fixed string
 								origFrom := v.Version
-								from := v.Version
+								from := utils.TrimString(v.Version, []string{"v", "V"})
 								if origFrom == "0" {
 									from = "0.0.0"
 								}
 								switch {
 								case origFrom == "unspecified" && len(strings.TrimSpace(v.LessThanOrEqual)) > 0:
-									to, _ = utils.ExtractVersions(utils.TrimString(v.LessThanOrEqual, []string{"v", "V"}))
+									to, _ = utils.ExtractVersions(utils.TrimString(v.LessThanOrEqual, []string{"v", "V"}), "")
 									from = strings.TrimSpace(fmt.Sprintf("%s.%s", to[:strings.LastIndex(to, ".")], "0"))
-								case origFrom == "unspecified" && len(strings.TrimSpace(v.LessThan)) > 0:
+								case len(strings.TrimSpace(v.LessThan)) > 0:
 									tempFrom := utils.TrimString(v.LessThan, []string{"v", "V"})
-									from = strings.TrimSpace(fmt.Sprintf("%s.%s", tempFrom[:strings.LastIndex(tempFrom, ".")], "0"))
+									if v.VersionType == "custom" {
+										from, to = utils.ExtractVersions(utils.TrimString(from, []string{"v", "V"}),"")
+									}
 									fixed = tempFrom
 								case strings.HasPrefix(strings.TrimSpace(origFrom), "prior to"):
 									fixed = strings.TrimSpace(strings.TrimPrefix(origFrom, "prior to"))
@@ -97,7 +100,7 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 									from = strings.TrimSpace(fmt.Sprintf("%s.%s", from[:strings.LastIndex(from, ".")], "0"))
 									to = from
 								default:
-									from, to = utils.ExtractVersions(utils.TrimString(from, []string{"v", "V"}))
+									from, to = utils.ExtractVersions(utils.TrimString(from, []string{"v", "V"}), v.LessThanOrEqual)
 								}
 								if strings.Count(from, ".") == 1 || strings.Count(to, ".") == 1 {
 									continue
@@ -136,6 +139,9 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 		i := item.(map[string]interface{})
 		externalURL := i["external_url"].(string)
 		id := i["id"].(string)
+		if id == "CVE-2018-1002102" {
+			fmt.Print("here")
+		}
 		for _, cveID := range getMultiIDs(id) {
 			currentVuln, err := LoadCveFromMitre(externalURL, cveID)
 			if err != nil {

@@ -103,7 +103,7 @@ func CvssVectorToScore(vector string) (string, float64) {
 	return bm.Severity().String(), bm.Score()
 }
 
-func ExtractVersions(versionString string) (string, string) {
+func ExtractVersions(versionString string, lessThenEqual string) (string, string) {
 	if strings.HasPrefix(strings.TrimSpace(versionString), "<=") {
 		tv := strings.ReplaceAll(strings.TrimSpace(versionString), "<=", "")
 		return strings.TrimSpace(fmt.Sprintf("%s.%s", tv[:strings.LastIndex(tv, ".")], "0")), tv
@@ -116,6 +116,7 @@ func ExtractVersions(versionString string) (string, string) {
 	for _, c := range []string{"controller-manager, kubelet, apiserver, kubectl", "-"} {
 		versionString = strings.TrimSpace(strings.ReplaceAll(versionString, c, ""))
 	}
+	var from string
 	versionParts := strings.Split(versionString, " ")
 	for _, p := range versionParts {
 		candidate, err := version.Parse(p)
@@ -124,14 +125,19 @@ func ExtractVersions(versionString string) (string, string) {
 		}
 		validVersion = append(validVersion, candidate.String())
 	}
-
+	if len(validVersion) == 1 {
+		var to string
+		from = strings.TrimSpace(validVersion[0])
+		if strings.TrimSpace(lessThenEqual) == "<=" {
+			to = strings.TrimSpace(validVersion[0])
+			from = strings.TrimSpace(fmt.Sprintf("%s.%s", from[:strings.LastIndex(from, ".")], "0"))
+		}
+		return from, to
+	}
 	if len(validVersion) == 2 {
 		return strings.TrimSpace(validVersion[0]), strings.TrimSpace(validVersion[1])
 	}
-	if len(validVersion) == 1 {
-		return strings.TrimSpace(validVersion[0]), ""
-	}
-	return versionString, ""
+	return from, ""
 }
 
 func FindVersion(versionString string) string {
