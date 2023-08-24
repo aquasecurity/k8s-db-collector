@@ -220,7 +220,7 @@ func updateAffectedEvents(v *Vulnerability) {
 				startVersion = ""
 				continue
 			}
-			if len(lastVersion) > 0 {
+			if len(lastVersion) > 0 || len(startVersion) == 0 {
 				newAffectedVesion = append(newAffectedVesion, av)
 				lastVersion = ""
 			}
