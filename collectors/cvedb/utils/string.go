@@ -103,27 +103,30 @@ func CvssVectorToScore(vector string) (string, float64) {
 	return bm.Severity().String(), bm.Score()
 }
 
-func ExtractVersions(versionString string, lessThenEqual string) (string, string) {
-	if strings.HasPrefix(strings.TrimSpace(versionString), "<=") {
-		tv := strings.TrimSpace(strings.ReplaceAll(strings.TrimSpace(versionString), "<=", ""))
-		lIndex := strings.LastIndex(tv, ".")
-		if lIndex > -1 {
-			return strings.TrimSpace(fmt.Sprintf("%s.%s", tv[:lIndex], "0")), tv
+func ExtractVersions(lessOps, origVersion string, ftype string) (string, string) {
+	var from, to string
+	tv := strings.TrimSpace(strings.ReplaceAll(strings.TrimSpace(lessOps), "<=", ""))
+	if (ftype == "lessThen" || ftype == "lessThenEqual") && len(lessOps) > 0 {
+		from = origVersion
+		if origVersion != "0" {
+			if strings.Count(from, ".") == 1 {
+				from = from + ".0"
+			} else {
+				lIndex := strings.LastIndex(tv, ".")
+				from = strings.TrimSpace(fmt.Sprintf("%s.%s", lessOps[:lIndex], "0"))
+			}
 		}
-	}
-	if strings.HasPrefix(strings.TrimSpace(versionString), "<") {
-		tv := strings.ReplaceAll(strings.TrimSpace(versionString), "<", "")
-		lIndex := strings.LastIndex(tv, ".")
-		if lIndex > -1 {
-			return strings.TrimSpace(fmt.Sprintf("%s.%s", tv[:lIndex], "0")), ""
+		if ftype == "lessThenEqual" {
+			to = strings.TrimSpace(tv)
 		}
+		return from, to
 	}
+
 	validVersion := make([]string, 0)
 	for _, c := range []string{"controller-manager, kubelet, apiserver, kubectl", "-"} {
-		versionString = strings.TrimSpace(strings.ReplaceAll(versionString, c, ""))
+		origVersion = strings.TrimSpace(strings.ReplaceAll(origVersion, c, ""))
 	}
-	var from string
-	versionParts := strings.Split(versionString, " ")
+	versionParts := strings.Split(origVersion, " ")
 	for _, p := range versionParts {
 		candidate, err := version.Parse(p)
 		if err != nil {
@@ -134,10 +137,6 @@ func ExtractVersions(versionString string, lessThenEqual string) (string, string
 	if len(validVersion) == 1 {
 		var to string
 		from = strings.TrimSpace(validVersion[0])
-		if strings.TrimSpace(lessThenEqual) == "<=" {
-			to = strings.TrimSpace(validVersion[0])
-			from = strings.TrimSpace(fmt.Sprintf("%s.%s", from[:strings.LastIndex(from, ".")], "0"))
-		}
 		return from, to
 	}
 	if len(validVersion) == 2 {
