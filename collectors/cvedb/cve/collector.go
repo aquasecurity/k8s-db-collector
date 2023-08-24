@@ -208,18 +208,16 @@ func updateAffectedEvents(v *Vulnerability) {
 		newAffectedVesion := make([]*Version, 0)
 		sort.Sort(byVersion(v.AffectedVersions))
 		var startVersion, lastVersion string
-		var start int
 		for _, av := range v.AffectedVersions {
-			if start == 0 && strings.Count(av.Introduced, ".") == 1 {
+			if len(startVersion) == 0 && strings.Count(av.Introduced, ".") == 1 {
 				startVersion = av.Introduced
-				start = 1
 				continue
 			}
 			if strings.Count(av.Introduced, ".") > 1 && len(lastVersion) == 0 && len(startVersion) > 0 {
 				lastVersion = av.Introduced
 				newAffectedVesion = append(newAffectedVesion, &Version{Introduced: startVersion + ".0", LastAffected: lastVersion})
 				newAffectedVesion = append(newAffectedVesion, &Version{Introduced: av.Introduced, LastAffected: av.LastAffected, Fixed: av.Fixed})
-				start = 0
+				startVersion = ""
 				continue
 			}
 			if len(lastVersion) > 0 {
