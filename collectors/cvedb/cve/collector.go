@@ -41,18 +41,20 @@ type Containers struct {
 		Affected []struct {
 			Product  string
 			Vendor   string
-			Versions []struct {
-				Status          string
-				Version         string
-				LessThanOrEqual string
-				LessThan        string
-				VersionType     string
-			}
+			Versions []*MitreVersion
 		}
 		Descriptions []struct {
 			Value string
 		}
 	}
+}
+
+type MitreVersion struct {
+	Status          string
+	Version         string
+	LessThanOrEqual string
+	LessThan        string
+	VersionType     string
 }
 
 type CveMetadata struct {
@@ -74,57 +76,32 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 				versions := make([]*Version, 0)
 				var component string
 				for _, a := range cve.Containers.Cna.Affected {
-					if cve.CveMetadata.CveId == "CVE-2020-8557" {
+					if cve.CveMetadata.CveId == "CVE-2019-11255" {
 						fmt.Println("here")
 					}
 					if len(component) == 0 {
 						component = a.Product
 					}
-					for _, v := range a.Versions {
-						if v.Status == "affected" {
-							var to, fixed string
-							origFrom := v.Version
-							if strings.HasPrefix(origFrom, "< ") {
-								v.LessThan = strings.TrimPrefix(origFrom, "< ")
-								v.VersionType = "custom"
-							}
-							from := utils.TrimString(v.Version, []string{"v", "V"})
-							if origFrom == "0" {
-								from = "0.0.0"
+					for _, sv := range a.Versions {
+						if sv.Status == "affected" {
+							var from, to, fixed string
+							v, ok := sanitizedVersion(sv)
+							if !ok {
+								continue
 							}
 							switch {
 							case len(strings.TrimSpace(v.LessThanOrEqual)) > 0:
-								if v.LessThanOrEqual == "<=" {
-									v.LessThanOrEqual = utils.TrimString(v.Version, []string{"v", "V"})
-								}
-								to, _ = utils.ExtractVersions(utils.TrimString(v.LessThanOrEqual, []string{"v", "V"}), "")
-								if strings.LastIndex(to, ".") != -1 {
-									from = strings.TrimSpace(fmt.Sprintf("%s.%s", to[:strings.LastIndex(to, ".")], "0"))
-								}
+								from, to = utils.ExtractVersions(v.LessThanOrEqual, v.Version, "lessThenEqual")
 							case len(strings.TrimSpace(v.LessThan)) > 0:
-								tempFrom := utils.TrimString(v.LessThan, []string{"v", "V"})
-								if v.VersionType == "custom" {
-									from, to = utils.ExtractVersions(utils.TrimString(from, []string{"v", "V"}), "")
-									if strings.Count(from, ".") == 1 {
-										from = from + ".0"
-									}
-								}
-								fixed = tempFrom
-							case strings.HasPrefix(strings.TrimSpace(origFrom), "prior to"):
-								fixed = strings.TrimSpace(strings.TrimPrefix(origFrom, "prior to"))
-								from = utils.TrimString(fixed, []string{"v", "V"})
-								from = strings.TrimSpace(fmt.Sprintf("%s.%s", from[:strings.LastIndex(from, ".")], "0"))
-							case strings.HasSuffix(strings.TrimSpace(origFrom), ".x"):
-								from = utils.TrimString(origFrom, []string{"v", "V"})
-								from = strings.TrimSpace(fmt.Sprintf("%s.%s", from[:strings.LastIndex(from, ".")], ""))
+								from, to = utils.ExtractVersions(v.LessThan, v.Version, "lessThen")
+								fixed = v.LessThan
 							default:
-								from, to = utils.ExtractVersions(utils.TrimString(from, []string{"v", "V"}), v.LessThanOrEqual)
-							}
-							if strings.Count(to, ".") == 1 {
-								continue
-							}
-							if strings.Count(from, ".") == 1 {
-								currentVuln.Major = true
+								if strings.Count(v.Version, ".") == 1 {
+									currentVuln.Major = true
+									from = v.Version
+								} else {
+									from, to = utils.ExtractVersions("", v.Version, "")
+								}
 							}
 							ver := &Version{Introduced: from, Fixed: fixed, LastAffected: to}
 							versions = append(versions, ver)
@@ -137,7 +114,6 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 					currentVuln.Description = cve.Containers.Cna.Descriptions[0].Value
 				}
 				currentVuln.AffectedVersions = versions
-
 			}
 		}
 		if currentVuln.Component == "kubernetes" {
@@ -148,6 +124,11 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 	}
 	return currentVuln, nil
 }
+
+const (
+	// Kubernetes is a container orchestration system for Docker containers
+	ExcludeNonCoreComponentsCves = "CVE-2019-11255"
+)
 
 func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 	var db map[string]interface{}
@@ -160,8 +141,8 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 		i := item.(map[string]interface{})
 		externalURL := i["external_url"].(string)
 		id := i["id"].(string)
-		if id == "CVE-2018-1002102" {
-			fmt.Print("here")
+		if strings.Contains(ExcludeNonCoreComponentsCves, id) {
+			continue
 		}
 		for _, cveID := range getMultiIDs(id) {
 			currentVuln, err := LoadCveFromMitre(externalURL, cveID)
@@ -172,7 +153,7 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 			if err != nil {
 				return nil, err
 			}
-			if len(vuln.Component) == 0 || strings.Contains(currentVuln.Component, "n/a") {
+			if len(currentVuln.AffectedVersions) == 0 {
 				continue
 			}
 			upstreamPrefix := upstreamOrgByName(strings.TrimPrefix(vuln.Component, "kube-"))
@@ -207,9 +188,7 @@ func (s byVersion) Len() int {
 }
 
 func (s byVersion) Swap(i, j int) {
-	s[i].Introduced, s[j].Introduced = s[j].Introduced, s[i].Introduced
-	s[i].Fixed, s[j].Fixed = s[j].Fixed, s[i].Fixed
-	s[i].LastAffected, s[j].LastAffected = s[j].LastAffected, s[i].LastAffected
+	s[i], s[j] = s[j], s[i]
 }
 
 func (s byVersion) Less(i, j int) bool {
@@ -229,8 +208,9 @@ func updateAffectedEvents(v *Vulnerability) {
 		newAffectedVesion := make([]*Version, 0)
 		sort.Sort(byVersion(v.AffectedVersions))
 		var startVersion, lastVersion string
-		for index, av := range v.AffectedVersions {
-			if index == 0 {
+		var start int
+		for _, av := range v.AffectedVersions {
+			if start == 0 && strings.Count(av.Introduced, ".") == 1 {
 				startVersion = av.Introduced
 				continue
 			}
@@ -238,10 +218,21 @@ func updateAffectedEvents(v *Vulnerability) {
 				lastVersion = av.Introduced
 				newAffectedVesion = append(newAffectedVesion, &Version{Introduced: startVersion + ".0", LastAffected: lastVersion})
 				newAffectedVesion = append(newAffectedVesion, &Version{Introduced: av.Introduced, LastAffected: av.LastAffected, Fixed: av.Fixed})
+				start = 0
 				continue
 			}
 			if len(lastVersion) > 0 {
 				newAffectedVesion = append(newAffectedVesion, av)
+			}
+		}
+		if lastVersion == "" && strings.Count(startVersion, ".") == 1 {
+			ver, err := version.NewSemver(v.AffectedVersions[len(v.AffectedVersions)-1].Introduced + ".0")
+			if err == nil {
+				versionParts := ver.Segments()
+				if len(versionParts) == 3 {
+					fixed := fmt.Sprintf("%d.%d.%d", versionParts[0], versionParts[1]+1, versionParts[2])
+					newAffectedVesion = append(newAffectedVesion, &Version{Introduced: startVersion + ".0", Fixed: fixed})
+				}
 			}
 		}
 		v.AffectedVersions = newAffectedVesion
@@ -264,10 +255,50 @@ func updateAffectedEvents(v *Vulnerability) {
 		if len(av.LastAffected) > 0 && len(av.Fixed) == 0 {
 			events = append(events, &Event{LastAffected: av.LastAffected})
 		}
+		if len(av.Introduced) > 0 && len(av.LastAffected) == 0 && len(av.Fixed) == 0 {
+			events = append(events, &Event{LastAffected: av.Introduced})
+		}
 		ranges = append(ranges, &Range{
 			RangeType: semver,
 			Events:    events,
 		})
 		v.Affected = append(v.Affected, &Affected{Ranges: ranges})
 	}
+}
+
+func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
+	if strings.Contains(v.Version, "n/a") && len(v.LessThan) == 0 && len(v.LessThanOrEqual) == 0 {
+		return v, false
+	}
+	if (v.LessThanOrEqual == "unspecified" || v.LessThan == "unspecified") && len(v.Version) > 0 {
+		return v, false
+	}
+	if v.LessThanOrEqual == "<=" {
+		v.LessThanOrEqual = v.Version
+	}
+	if strings.HasPrefix(v.Version, "< ") {
+		v.LessThan = strings.TrimPrefix(v.Version, "< ")
+	}
+	if strings.HasPrefix(v.Version, "<= ") {
+		v.LessThanOrEqual = strings.TrimPrefix(v.Version, "<= ")
+	}
+	if strings.HasPrefix(strings.TrimSpace(v.Version), "prior to") {
+		v.LessThan = strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
+		v.Version = strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
+	}
+	if strings.HasPrefix(strings.TrimSpace(v.LessThan), "prior to") {
+		v.LessThan = strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
+	}
+	if strings.HasSuffix(strings.TrimSpace(v.LessThan), "*") {
+		v.Version = strings.TrimSpace(strings.ReplaceAll(v.LessThan, "*", ""))
+		v.LessThan = ""
+	}
+	if strings.HasSuffix(strings.TrimSpace(v.Version), ".x") {
+		v.Version = strings.TrimSpace(fmt.Sprintf("%s%s", v.Version[:strings.LastIndex(v.Version, ".")], ""))
+	}
+	return &MitreVersion{
+		Version:         utils.TrimString(v.Version, []string{"v", "V"}),
+		LessThanOrEqual: utils.TrimString(v.LessThanOrEqual, []string{"v", "V"}),
+		LessThan:        utils.TrimString(v.LessThan, []string{"v", "V"}),
+	}, true
 }
