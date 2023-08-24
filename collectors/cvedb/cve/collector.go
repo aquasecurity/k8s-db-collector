@@ -76,7 +76,7 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 				versions := make([]*Version, 0)
 				var component string
 				for _, a := range cve.Containers.Cna.Affected {
-					if cve.CveMetadata.CveId == "CVE-2019-11255" {
+					if cve.CveMetadata.CveId == "CVE-2017-1002101" {
 						fmt.Println("here")
 					}
 					if len(component) == 0 {
@@ -212,9 +212,10 @@ func updateAffectedEvents(v *Vulnerability) {
 		for _, av := range v.AffectedVersions {
 			if start == 0 && strings.Count(av.Introduced, ".") == 1 {
 				startVersion = av.Introduced
+				start = 1
 				continue
 			}
-			if strings.Count(av.Introduced, ".") > 1 && len(lastVersion) == 0 {
+			if strings.Count(av.Introduced, ".") > 1 && len(lastVersion) == 0 && len(startVersion) > 0 {
 				lastVersion = av.Introduced
 				newAffectedVesion = append(newAffectedVesion, &Version{Introduced: startVersion + ".0", LastAffected: lastVersion})
 				newAffectedVesion = append(newAffectedVesion, &Version{Introduced: av.Introduced, LastAffected: av.LastAffected, Fixed: av.Fixed})
@@ -223,6 +224,7 @@ func updateAffectedEvents(v *Vulnerability) {
 			}
 			if len(lastVersion) > 0 {
 				newAffectedVesion = append(newAffectedVesion, av)
+				lastVersion = ""
 			}
 		}
 		if lastVersion == "" && strings.Count(startVersion, ".") == 1 {
