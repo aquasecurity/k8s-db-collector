@@ -125,6 +125,11 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 	return currentVuln, nil
 }
 
+const (
+	// Kubernetes is a container orchestration system for Docker containers
+	ExcludeNonCoreComponentsCves = "CVE-2019-11255"
+)
+
 func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 	var db map[string]interface{}
 	err := json.Unmarshal(vulnDB, &db)
@@ -136,8 +141,8 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 		i := item.(map[string]interface{})
 		externalURL := i["external_url"].(string)
 		id := i["id"].(string)
-		if id == "CVE-2018-1002102" {
-			fmt.Print("here")
+		if strings.Contains(ExcludeNonCoreComponentsCves, id) {
+			continue
 		}
 		for _, cveID := range getMultiIDs(id) {
 			currentVuln, err := LoadCveFromMitre(externalURL, cveID)
