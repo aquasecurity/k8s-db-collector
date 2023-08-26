@@ -283,8 +283,12 @@ func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
 		v.LessThanOrEqual = strings.TrimPrefix(v.Version, "<= ")
 	}
 	if strings.HasPrefix(strings.TrimSpace(v.Version), "prior to") {
-		v.LessThan = strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
-		v.Version = strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
+		priorToVersion := strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
+		if strings.Count(priorToVersion, ".") == 1 {
+			priorToVersion = priorToVersion + ".0"
+		}
+		v.LessThan = priorToVersion
+		v.Version = priorToVersion
 	}
 	if strings.HasPrefix(strings.TrimSpace(v.LessThan), "prior to") {
 		v.LessThan = strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
