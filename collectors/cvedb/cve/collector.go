@@ -130,7 +130,7 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 
 const (
 	// Kubernetes is a container orchestration system for Docker containers
-	ExcludeNonCoreComponentsCves = "CVE-2019-11255"
+	ExcludeNonCoreComponentsCves = "CVE-2019-11255,CVE-2020-10749,CVE-2020-8554"
 )
 
 func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
