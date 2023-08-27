@@ -3,7 +3,6 @@ package cve
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,9 +11,6 @@ import (
 
 	"github.com/aquasecurity/go-version/pkg/version"
 	"github.com/aquasecurity/k8s-db-collector/collectors/cvedb/utils"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/parser"
 )
 
 const (
@@ -23,42 +19,19 @@ const (
 )
 
 func ParseVulnItem(item interface{}, mid string) (*Vulnerability, error) {
-	gm := goldmark.New(
-		goldmark.WithExtensions(
-			extension.GFM, // GitHub flavoured markdown.
-		),
-		goldmark.WithParserOptions(
-			parser.WithAttribute(), // Enables # headers {#custom-ids}.
-		),
-		goldmark.WithRenderer(NewRenderer()),
-	)
-	vulnDoc := new(bytes.Buffer)
 	i := item.(map[string]interface{})
 	contentText := i["content_text"].(string)
 	amendedDoc := AmendCveDoc(contentText)
-	err := gm.Convert([]byte(amendedDoc), vulnDoc)
-	if err != nil {
-		return nil, err
-	}
-	var c Content
-	err = json.Unmarshal(vulnDoc.Bytes(), &c)
-	if err != nil {
-		return nil, err
-	}
-	severity, score := utils.CvssVectorToScore(c.Cvss)
+
+	c := getComponentFromDescriptionAndffected(amendedDoc.AffectedFixed, amendedDoc.Description)
 	vulnerability := Vulnerability{
-		ID:               mid,
-		Summary:          i["summary"].(string),
-		Urls:             []string{i["url"].(string), i["external_url"].(string)},
-		CreatedAt:        i["date_published"].(string),
-		AffectedVersions: c.AffectedVersions,
-		FixedVersions:    c.FixedVersions,
-		Description:      c.Description,
-		Component:        c.ComponentName,
-		CvssV3:           Cvssv3{Vector: c.Cvss, Score: score},
-	}
-	if len(severity) > 0 {
-		vulnerability.Severity = severity
+		ID:            mid,
+		Summary:       i["summary"].(string),
+		Urls:          []string{i["url"].(string), i["external_url"].(string)},
+		CreatedAt:     i["date_published"].(string),
+		AffectedFixed: amendedDoc.AffectedFixed,
+		Description:   amendedDoc.Description,
+		Component:     c,
 	}
 	return &vulnerability, nil
 }
@@ -77,11 +50,19 @@ func getMultiIDs(id string) []string {
 	return []string{id}
 }
 
-func AmendCveDoc(doc string) string {
+type CVEDoc struct {
+	AffectedFixed string
+	Description   string
+}
+
+func AmendCveDoc(doc string) CVEDoc {
 	var lineWriter bytes.Buffer
 	docReader := strings.NewReader(doc)
 	fileScanner := bufio.NewScanner(docReader)
 	fileScanner.Split(bufio.ScanLines)
+
+	var affectedFixed strings.Builder
+	var description strings.Builder
 	var startAffected, endAffected bool
 	var startFixed, endFixed bool
 	for fileScanner.Scan() {
@@ -106,7 +87,7 @@ func AmendCveDoc(doc string) string {
 		}
 		// add description
 		if !(startAffected || startFixed) {
-			lineWriter.WriteString(fmt.Sprintf("%s\n", line))
+			description.WriteString(fmt.Sprintf("%s\n", line))
 			continue
 		}
 		// complete version parsing
@@ -117,14 +98,12 @@ func AmendCveDoc(doc string) string {
 		if len(strings.TrimSpace(line)) == 0 {
 			continue
 		}
-		vp, sign := utils.VersionParts(line)
-		if len(vp) > 0 {
-			line = utils.UpdatedLine(vp, sign)
-			lineWriter.WriteString(fmt.Sprintf("%s\n", line))
-			continue
-		}
+		affectedFixed.WriteString(fmt.Sprintf("%s\n", line))
 	}
-	return lineWriter.String()
+	return CVEDoc{
+		AffectedFixed: affectedFixed.String(),
+		Description:   description.String(),
+	}
 }
 
 func ValidateCveData(cves []*Vulnerability) error {
@@ -146,27 +125,14 @@ func ValidateCveData(cves []*Vulnerability) error {
 		if newCve && len(cve.Description) == 0 {
 			result = multierror.Append(result, fmt.Errorf("\nDescription is mssing on cve #%s", cve.ID))
 		}
-		if newCve && len(cve.AffectedVersions) == 0 {
+		if newCve && len(cve.Affected) == 0 {
 			result = multierror.Append(result, fmt.Errorf("\nFixedVersion is missing on cve #%s", cve.ID))
 		}
-		if newCve && len(cve.AffectedVersions) > 0 {
+		if newCve && len(cve.Affected) > 0 {
 			for _, v := range cve.AffectedVersions {
 				_, err := version.Parse(v.Introduced)
 				if err != nil {
 					result = multierror.Append(result, fmt.Errorf("\nAffectedVersion From %s is invalid on cve #%s", v.Introduced, cve.ID))
-				}
-			}
-		}
-
-		if newCve && len(cve.FixedVersions) == 0 {
-			result = multierror.Append(result, fmt.Errorf("\nFixedVersion is missing on cve #%s", cve.ID))
-		}
-
-		if newCve && len(cve.FixedVersions) > 0 {
-			for _, v := range cve.FixedVersions {
-				_, err := version.Parse(v.Fixed)
-				if err != nil {
-					result = multierror.Append(result, fmt.Errorf("\nFixedVersion Fixed %s is invalid on cve #%s", v.Introduced, cve.ID))
 				}
 			}
 		}
@@ -206,4 +172,24 @@ func upstreamRepoByName(component string) string {
 		return val
 	}
 	return component
+}
+
+func getComponentFromDescriptionAndffected(descriptions ...string) string {
+	var compName string
+	var compCounter int
+	for _, d := range descriptions {
+		for key, value := range upstreamRepoName {
+			if key == "kubernetes" {
+				continue
+			}
+			if strings.Contains(strings.ToLower(d), key) {
+				c := strings.Count(strings.ToLower(d), key)
+				if c > compCounter {
+					compCounter = c
+					compName = value
+				}
+			}
+		}
+	}
+	return compName
 }

@@ -46,6 +46,11 @@ type Containers struct {
 		Descriptions []struct {
 			Value string
 		}
+		Metrics []struct {
+			CvssV3_1 struct {
+				VectorString string
+			}
+		}
 	}
 }
 
@@ -64,63 +69,73 @@ type CveMetadata struct {
 func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) {
 	currentVuln := &Vulnerability{}
 	if strings.HasPrefix(externalURL, cveList) {
+		var cve MitreCVE
 		response, err := http.Get(fmt.Sprintf("%s/%s", mitreURL, cveID))
-		if err == nil {
-			cveInfo, err := io.ReadAll(response.Body)
-			if err == nil {
-				var cve MitreCVE
-				err = json.Unmarshal(cveInfo, &cve)
-				if err != nil {
-					return nil, err
-				}
-				versions := make([]*Version, 0)
-				var component string
-				for _, a := range cve.Containers.Cna.Affected {
-					if cve.CveMetadata.CveId == "CVE-2019-11250" {
-						fmt.Println("here")
+		if err != nil {
+			return nil, err
+		}
+		cveInfo, err := io.ReadAll(response.Body)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(cveInfo, &cve)
+		if err != nil {
+			return nil, err
+		}
+		versions := make([]*Version, 0)
+		var component string
+		if cve.CveMetadata.CveId == "CVE-2022-3294" {
+			fmt.Println("here")
+		}
+		for _, a := range cve.Containers.Cna.Affected {
+			if len(component) == 0 {
+				component = a.Product
+			}
+			for _, sv := range a.Versions {
+				if sv.Status == "affected" {
+					var from, to, fixed string
+					v, ok := sanitizedVersion(sv)
+					if !ok {
+						continue
 					}
-					if len(component) == 0 {
-						component = a.Product
-					}
-					for _, sv := range a.Versions {
-						if sv.Status == "affected" {
-							var from, to, fixed string
-							v, ok := sanitizedVersion(sv)
-							if !ok {
-								continue
-							}
-							switch {
-							case len(strings.TrimSpace(v.LessThanOrEqual)) > 0:
-								from, to = utils.ExtractVersions(v.LessThanOrEqual, v.Version, "lessThenEqual")
-							case len(strings.TrimSpace(v.LessThan)) > 0:
-								from, to = utils.ExtractVersions(v.LessThan, v.Version, "lessThen")
-								if strings.HasSuffix(v.LessThan, ".0") {
-									from = "0"
-								}
-								fixed = v.LessThan
-							default:
-								if strings.Count(v.Version, ".") == 1 {
-									currentVuln.Major = true
-									from = v.Version
-								} else {
-									from, to = utils.ExtractVersions("", v.Version, "")
-								}
-							}
-							ver := &Version{Introduced: from, Fixed: fixed, LastAffected: to}
-							versions = append(versions, ver)
-
+					switch {
+					case len(strings.TrimSpace(v.LessThanOrEqual)) > 0:
+						from, to = utils.ExtractVersions(v.LessThanOrEqual, v.Version, "lessThenEqual")
+					case len(strings.TrimSpace(v.LessThan)) > 0:
+						from, to = utils.ExtractVersions(v.LessThan, v.Version, "lessThen")
+						if strings.HasSuffix(v.LessThan, ".0") {
+							from = "0"
+						}
+						fixed = v.LessThan
+					default:
+						if strings.Count(v.Version, ".") == 1 {
+							currentVuln.Major = true
+							from = v.Version
+						} else {
+							from, to = utils.ExtractVersions("", v.Version, "")
 						}
 					}
+					ver := &Version{Introduced: from, Fixed: fixed, LastAffected: to}
+					versions = append(versions, ver)
+
 				}
-				currentVuln.Component = component
-				if len(cve.Containers.Cna.Descriptions) > 0 {
-					currentVuln.Description = cve.Containers.Cna.Descriptions[0].Value
-				}
-				currentVuln.AffectedVersions = versions
 			}
 		}
+		currentVuln.Component = component
+		if len(cve.Containers.Cna.Descriptions) > 0 {
+			currentVuln.Description = cve.Containers.Cna.Descriptions[0].Value
+		}
+		currentVuln.AffectedVersions = versions
+		if len(cve.Containers.Cna.Metrics) > 0 {
+			secerity, score := utils.CvssVectorToScore(cve.Containers.Cna.Metrics[0].CvssV3_1.VectorString)
+			currentVuln.CvssV3 = Cvssv3{
+				Vector: cve.Containers.Cna.Metrics[0].CvssV3_1.VectorString,
+				Score:  score,
+			}
+			currentVuln.Severity = secerity
+		}
 		if currentVuln.Component == "kubernetes" {
-			if v := getComponentFromDescription(currentVuln.Description); v != "" {
+			if v := getComponentFromDescriptionAndffected(currentVuln.Description); v != "" {
 				currentVuln.Component = v
 			}
 		}
@@ -159,6 +174,8 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 			if len(currentVuln.AffectedVersions) == 0 {
 				continue
 			}
+			vuln.CvssV3 = currentVuln.CvssV3
+			vuln.Severity = currentVuln.Severity
 			upstreamPrefix := upstreamOrgByName(strings.TrimPrefix(vuln.Component, "kube-"))
 			if upstreamPrefix != "" {
 				vuln.Component = strings.ToLower(fmt.Sprintf("%s/%s", upstreamPrefix, upstreamRepoByName(strings.TrimPrefix(vuln.Component, "kube-"))))
