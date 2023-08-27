@@ -22,7 +22,6 @@ func ParseVulnItem(item interface{}, mid string) (*Vulnerability, error) {
 	i := item.(map[string]interface{})
 	contentText := i["content_text"].(string)
 	amendedDoc := AmendCveDoc(contentText)
-
 	c := getComponentFromDescriptionAndffected(amendedDoc.AffectedFixed, amendedDoc.Description)
 	vulnerability := Vulnerability{
 		ID:            mid,
@@ -177,6 +176,7 @@ func upstreamRepoByName(component string) string {
 func getComponentFromDescriptionAndffected(descriptions ...string) string {
 	var compName string
 	var compCounter int
+	var kubeCtlVersionFound bool
 	for _, d := range descriptions {
 		for key, value := range upstreamRepoName {
 			if key == "kubernetes" {
@@ -184,12 +184,21 @@ func getComponentFromDescriptionAndffected(descriptions ...string) string {
 			}
 			if strings.Contains(strings.ToLower(d), key) {
 				c := strings.Count(strings.ToLower(d), key)
+				if value == compName {
+					compCounter = compCounter + c
+				}
+				if strings.Contains(strings.ToLower(d), "kubectl version") {
+					kubeCtlVersionFound = true
+				}
 				if c > compCounter {
 					compCounter = c
 					compName = value
 				}
 			}
 		}
+	}
+	if kubeCtlVersionFound && compName == "kubectl" && compCounter == 1 {
+		compName = ""
 	}
 	return compName
 }

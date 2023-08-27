@@ -84,7 +84,7 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 		}
 		versions := make([]*Version, 0)
 		var component string
-		if cve.CveMetadata.CveId == "CVE-2022-3294" {
+		if cve.CveMetadata.CveId == "CVE-2023-2727" {
 			fmt.Println("here")
 		}
 		for _, a := range cve.Containers.Cna.Affected {
@@ -134,7 +134,7 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 			}
 			currentVuln.Severity = secerity
 		}
-		if currentVuln.Component == "kubernetes" {
+		if strings.ToLower(currentVuln.Component) == "kubernetes" {
 			if v := getComponentFromDescriptionAndffected(currentVuln.Description); v != "" {
 				currentVuln.Component = v
 			}
@@ -173,6 +173,9 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 			}
 			if len(currentVuln.AffectedVersions) == 0 {
 				continue
+			}
+			if len(currentVuln.Component) != 0 && strings.ToLower(currentVuln.Component) != "kubernetes" {
+				vuln.Component = currentVuln.Component
 			}
 			vuln.CvssV3 = currentVuln.CvssV3
 			vuln.Severity = currentVuln.Severity
