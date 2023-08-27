@@ -13,7 +13,7 @@ var (
 		"kubectl":                  "kubectl",
 		"kubernetes":               "kubernetes",
 		"scheduler":                "kube-scheduler",
-		"proxy":                    "kube-proxy",
+		"kube-proxy":               "kube-proxy",
 		"api server":               "apiserver",
 		"secrets-store-csi-driver": "secrets-store-csi-driver",
 	}
