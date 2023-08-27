@@ -26,6 +26,7 @@ type Vulnerability struct {
 	Component        string      `json:"component,omitempty"`
 	Description      string      `json:"details,omitempty"`
 	AffectedVersions []*Version  `json:"-"`
+	AffectedFixed    string      `json:"-"`
 	Affected         []*Affected `json:"affected,omitempty"`
 	FixedVersions    []*Version  `json:"-"`
 	Urls             []string    `json:"references,omitempty"`
