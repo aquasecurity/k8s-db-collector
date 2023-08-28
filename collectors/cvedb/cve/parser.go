@@ -18,10 +18,10 @@ const (
 	header    = `(^#{1,6}\s*[\S]+)`
 )
 
-func ParseVulnItem(item interface{}, mid string) (*Vulnerability, error) {
+func parseOfficialK8sCve(item interface{}, mid string) (*Vulnerability, error) {
 	i := item.(map[string]interface{})
 	contentText := i["content_text"].(string)
-	amendedDoc := AmendCveDoc(contentText)
+	amendedDoc := amendCveDoc(contentText)
 	c := getComponentFromDescriptionAndffected(amendedDoc.AffectedFixed, amendedDoc.Description)
 	vulnerability := Vulnerability{
 		ID:            mid,
@@ -54,7 +54,7 @@ type CVEDoc struct {
 	Description   string
 }
 
-func AmendCveDoc(doc string) CVEDoc {
+func amendCveDoc(doc string) CVEDoc {
 	var lineWriter bytes.Buffer
 	docReader := strings.NewReader(doc)
 	fileScanner := bufio.NewScanner(docReader)

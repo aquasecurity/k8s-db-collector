@@ -32,7 +32,7 @@ type Vulnerability struct {
 	Urls             []string    `json:"references,omitempty"`
 	CvssV3           Cvssv3      `json:"cvssv3,omitempty"`
 	Severity         string      `json:"severity,omitempty"`
-	Major            bool        `json:"-"`
+	MajorVersion     bool        `json:"-"`
 }
 
 type K8sVulnDB struct {

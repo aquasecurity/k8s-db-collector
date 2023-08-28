@@ -66,7 +66,7 @@ type CveMetadata struct {
 	CveId string
 }
 
-func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) {
+func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 	currentVuln := &Vulnerability{}
 	if strings.HasPrefix(externalURL, cveList) {
 		var cve MitreCVE
@@ -84,9 +84,6 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 		}
 		versions := make([]*Version, 0)
 		var component string
-		if cve.CveMetadata.CveId == "CVE-2023-2727" {
-			fmt.Println("here")
-		}
 		for _, a := range cve.Containers.Cna.Affected {
 			if len(component) == 0 {
 				component = a.Product
@@ -109,7 +106,7 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 						fixed = v.LessThan
 					default:
 						if strings.Count(v.Version, ".") == 1 {
-							currentVuln.Major = true
+							currentVuln.MajorVersion = true
 							from = v.Version
 						} else {
 							from, to = utils.ExtractVersions("", v.Version, "")
@@ -145,7 +142,7 @@ func LoadCveFromMitre(externalURL string, cveID string) (*Vulnerability, error) 
 
 const (
 	// Kubernetes is a container orchestration system for Docker containers
-	ExcludeNonCoreComponentsCves = "CVE-2019-11255,CVE-2020-10749,CVE-2020-8554"
+	excludeNonCoreComponentsCves = "CVE-2019-11255,CVE-2020-10749,CVE-2020-8554"
 )
 
 func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
@@ -159,42 +156,31 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 		i := item.(map[string]interface{})
 		externalURL := i["external_url"].(string)
 		id := i["id"].(string)
-		if strings.Contains(ExcludeNonCoreComponentsCves, id) {
+		if strings.Contains(excludeNonCoreComponentsCves, id) {
 			continue
 		}
 		for _, cveID := range getMultiIDs(id) {
-			currentVuln, err := LoadCveFromMitre(externalURL, cveID)
-			if err != nil || len(currentVuln.Component) == 0 {
+			mitreCve, err := parseMitreCve(externalURL, cveID)
+			if err != nil || len(mitreCve.Component) == 0 {
 				continue
 			}
-			vuln, err := ParseVulnItem(item, cveID)
+			officialK8sCve, err := parseOfficialK8sCve(item, cveID)
 			if err != nil {
 				return nil, err
 			}
-			if len(currentVuln.AffectedVersions) == 0 {
+			if len(mitreCve.AffectedVersions) == 0 {
 				continue
 			}
-			if len(currentVuln.Component) != 0 && strings.ToLower(currentVuln.Component) != "kubernetes" {
-				vuln.Component = currentVuln.Component
+			officialK8sCve.Component = getComponentName(officialK8sCve, mitreCve)
+			if len(mitreCve.Description) > 0 {
+				officialK8sCve.Description = mitreCve.Description
 			}
-			vuln.CvssV3 = currentVuln.CvssV3
-			vuln.Severity = currentVuln.Severity
-			upstreamPrefix := upstreamOrgByName(strings.TrimPrefix(vuln.Component, "kube-"))
-			if upstreamPrefix != "" {
-				vuln.Component = strings.ToLower(fmt.Sprintf("%s/%s", upstreamPrefix, upstreamRepoByName(strings.TrimPrefix(vuln.Component, "kube-"))))
-			} else {
-				av := upstreamOrgByName(strings.TrimPrefix(currentVuln.Component, "kube-"))
-				vuln.Component = strings.ToLower(fmt.Sprintf("%s/%s", av, upstreamRepoByName(strings.TrimPrefix(currentVuln.Component, "kube-"))))
+			officialK8sCve.AffectedVersions = mitreCve.AffectedVersions
+			if mitreCve.MajorVersion {
+				officialK8sCve.MajorVersion = true
 			}
-			if len(currentVuln.Description) > 0 {
-				vuln.Description = currentVuln.Description
-			}
-			vuln.AffectedVersions = currentVuln.AffectedVersions
-			if currentVuln.Major {
-				vuln.Major = true
-			}
-			updateAffectedEvents(vuln)
-			fullVulnerabilities = append(fullVulnerabilities, vuln)
+			updateAffectedEvents(officialK8sCve)
+			fullVulnerabilities = append(fullVulnerabilities, officialK8sCve)
 		}
 	}
 	err = ValidateCveData(fullVulnerabilities)
@@ -227,7 +213,7 @@ func (s byVersion) Less(i, j int) bool {
 }
 
 func updateAffectedEvents(v *Vulnerability) {
-	if v.Major {
+	if v.MajorVersion {
 		newAffectedVesion := make([]*Version, 0)
 		sort.Sort(byVersion(v.AffectedVersions))
 		var startVersion, lastVersion string
@@ -328,4 +314,19 @@ func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
 		LessThanOrEqual: utils.TrimString(v.LessThanOrEqual, []string{"v", "V"}),
 		LessThan:        utils.TrimString(v.LessThan, []string{"v", "V"}),
 	}, true
+}
+
+func getComponentName(officialK8sCve *Vulnerability, mitreCve *Vulnerability) string {
+	// prefet mitre component if exists
+	if len(mitreCve.Component) != 0 && strings.ToLower(mitreCve.Component) != "kubernetes" {
+		officialK8sCve.Component = mitreCve.Component
+	}
+	officialK8sCve.CvssV3 = mitreCve.CvssV3
+	officialK8sCve.Severity = mitreCve.Severity
+	upstreamPrefix := upstreamOrgByName(strings.TrimPrefix(officialK8sCve.Component, "kube-"))
+	if upstreamPrefix != "" {
+		return strings.ToLower(fmt.Sprintf("%s/%s", upstreamPrefix, upstreamRepoByName(strings.TrimPrefix(officialK8sCve.Component, "kube-"))))
+	}
+	av := upstreamOrgByName(strings.TrimPrefix(mitreCve.Component, "kube-"))
+	return strings.ToLower(fmt.Sprintf("%s/%s", av, upstreamRepoByName(strings.TrimPrefix(mitreCve.Component, "kube-"))))
 }
