@@ -3,13 +3,13 @@ package cve
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/go-version"
 	"io"
 	"net/http"
-	"sort"
 	"strings"
 
+	version "github.com/aquasecurity/go-pep440-version"
 	"github.com/aquasecurity/k8s-db-collector/collectors/cvedb/utils"
+	"github.com/hashicorp/go-multierror"
 )
 
 const (
@@ -31,127 +31,6 @@ func Collect() (*K8sVulnDB, error) {
 	return ParseVulnDBData(vulnDB)
 }
 
-type MitreCVE struct {
-	CveMetadata CveMetadata
-	Containers  Containers
-}
-
-type Containers struct {
-	Cna struct {
-		Affected []struct {
-			Product  string
-			Vendor   string
-			Versions []*MitreVersion
-		}
-		Descriptions []struct {
-			Value string
-		}
-		Metrics []struct {
-			CvssV3_1 struct {
-				VectorString string
-			}
-			CvssV3_0 struct {
-				VectorString string
-			}
-		}
-	}
-}
-
-type MitreVersion struct {
-	Status          string
-	Version         string
-	LessThanOrEqual string
-	LessThan        string
-	VersionType     string
-}
-
-type CveMetadata struct {
-	CveId string
-}
-
-func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
-	currentVuln := &Vulnerability{}
-	if strings.HasPrefix(externalURL, cveList) {
-		var cve MitreCVE
-		response, err := http.Get(fmt.Sprintf("%s/%s", mitreURL, cveID))
-		if err != nil {
-			return nil, err
-		}
-		cveInfo, err := io.ReadAll(response.Body)
-		if err != nil {
-			return nil, err
-		}
-		err = json.Unmarshal(cveInfo, &cve)
-		if err != nil {
-			return nil, err
-		}
-		versions := make([]*Version, 0)
-		var component string
-		if cve.CveMetadata.CveId == "CVE-2017-1002101" {
-			fmt.Print("here")
-		}
-		for _, a := range cve.Containers.Cna.Affected {
-			if len(component) == 0 {
-				component = a.Product
-			}
-			for _, sv := range a.Versions {
-				if sv.Status == "affected" {
-					var from, to, fixed string
-					v, ok := sanitizedVersion(sv)
-					if !ok {
-						continue
-					}
-					switch {
-					case len(strings.TrimSpace(v.LessThanOrEqual)) > 0:
-						from, to = utils.ExtractVersions(v.LessThanOrEqual, v.Version, "lessThenEqual")
-					case len(strings.TrimSpace(v.LessThan)) > 0:
-						from, to = utils.ExtractVersions(v.LessThan, v.Version, "lessThen")
-						if strings.HasSuffix(v.LessThan, ".0") {
-							from = "0"
-						}
-						fixed = v.LessThan
-					default:
-						if strings.Count(v.Version, ".") == 1 {
-							currentVuln.MajorVersion = true
-							from = v.Version
-						} else {
-							from, to = utils.ExtractVersions("", v.Version, "")
-						}
-					}
-					ver := &Version{Introduced: from, Fixed: fixed, LastAffected: to}
-					versions = append(versions, ver)
-
-				}
-			}
-		}
-		currentVuln.Component = component
-		if len(cve.Containers.Cna.Descriptions) > 0 {
-			currentVuln.Description = cve.Containers.Cna.Descriptions[0].Value
-		}
-		currentVuln.AffectedVersions = versions
-
-		if len(cve.Containers.Cna.Metrics) > 0 {
-			vectorString := cve.Containers.Cna.Metrics[0].CvssV3_0.VectorString
-			if len(vectorString) == 0 {
-				vectorString = cve.Containers.Cna.Metrics[0].CvssV3_1.VectorString
-			}
-			secerity, score := utils.CvssVectorToScore(vectorString)
-			currentVuln.CvssV3 = Cvssv3{
-				Vector: vectorString,
-				Score:  score,
-			}
-			currentVuln.Severity = secerity
-		}
-
-		if strings.ToLower(currentVuln.Component) == "kubernetes" {
-			if v := getComponentFromDescriptionAndffected(currentVuln.Description); v != "" {
-				currentVuln.Component = v
-			}
-		}
-	}
-	return currentVuln, nil
-}
-
 const (
 	// Kubernetes is a container orchestration system for Docker containers
 	excludeNonCoreComponentsCves = "CVE-2019-11255,CVE-2020-10749,CVE-2020-8554"
@@ -166,34 +45,33 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 	fullVulnerabilities := make([]*Vulnerability, 0)
 	for _, item := range db["items"].([]interface{}) {
 		i := item.(map[string]interface{})
-		externalURL := i["external_url"].(string)
 		id := i["id"].(string)
 		if strings.Contains(excludeNonCoreComponentsCves, id) {
 			continue
 		}
-		for _, cveID := range getMultiIDs(id) {
-			mitreCve, err := parseMitreCve(externalURL, cveID)
-			if err != nil || len(mitreCve.Component) == 0 {
+		externalURL := i["external_url"].(string)
+		for _, cveID := range utils.GetMultiIDs(id) {
+			vulnerability, err := parseMitreCve(externalURL, cveID)
+			if err != nil || len(vulnerability.Component) == 0 {
 				continue
 			}
-			officialK8sCve, err := parseOfficialK8sCve(item, cveID)
-			if err != nil {
-				return nil, err
-			}
-			if len(mitreCve.AffectedVersions) == 0 {
+			if len(vulnerability.AffectedVersions) == 0 {
 				continue
 			}
-			officialK8sCve.CvssV3 = mitreCve.CvssV3
-			officialK8sCve.Severity = mitreCve.Severity
-			officialK8sCve.Component = getComponentName(officialK8sCve, mitreCve)
-			if len(mitreCve.Description) > 0 {
-				officialK8sCve.Description = mitreCve.Description
-			}
-			if mitreCve.MajorVersion {
-				officialK8sCve.MajorVersion = true
-			}
-			officialK8sCve.Affected = GetAffectedEvents(mitreCve)
-			fullVulnerabilities = append(fullVulnerabilities, officialK8sCve)
+			contentText := i["content_text"].(string)
+			component := utils.GetComponentFromDescriptionAndffected(contentText)
+
+			fullVulnerabilities = append(fullVulnerabilities, &Vulnerability{
+				ID:          cveID,
+				CreatedAt:   i["date_published"].(string),
+				Component:   getComponentName(component, vulnerability),
+				Affected:    GetAffectedEvents(vulnerability),
+				Summary:     i["summary"].(string),
+				Description: vulnerability.Description,
+				Urls:        []string{i["url"].(string), externalURL},
+				CvssV3:      vulnerability.CvssV3,
+				Severity:    vulnerability.Severity,
+			})
 		}
 	}
 	err = ValidateCveData(fullVulnerabilities)
@@ -203,65 +81,7 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 	return &K8sVulnDB{fullVulnerabilities}, nil
 }
 
-type byVersion []*Version
-
-func (s byVersion) Len() int {
-	return len(s)
-}
-
-func (s byVersion) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-func (s byVersion) Less(i, j int) bool {
-	v1, err := version.NewVersion(s[i].Introduced)
-	if err != nil {
-		return false
-	}
-	v2, err := version.NewVersion(s[j].Introduced)
-	if err != nil {
-		return false
-	}
-	return v1.LessThan(v2)
-}
-
 func GetAffectedEvents(v *Vulnerability) []*Affected {
-	// this special handling is made to handle to case of conceutive vulnable major versions
-	if v.MajorVersion {
-		newAffectedVesion := make([]*Version, 0)
-		sort.Sort(byVersion(v.AffectedVersions))
-		var startVersion, lastVersion string
-		for _, av := range v.AffectedVersions {
-			if len(startVersion) == 0 && strings.Count(av.Introduced, ".") == 1 {
-				startVersion = av.Introduced
-				continue
-			}
-			if strings.Count(av.Introduced, ".") > 1 && len(lastVersion) == 0 && len(startVersion) > 0 {
-				lastVersion = av.Introduced
-				newAffectedVesion = append(newAffectedVesion, &Version{Introduced: startVersion + ".0", LastAffected: lastVersion})
-				newAffectedVesion = append(newAffectedVesion, &Version{Introduced: av.Introduced, LastAffected: av.LastAffected, Fixed: av.Fixed})
-				startVersion = ""
-				continue
-			}
-			if len(lastVersion) > 0 || len(startVersion) == 0 {
-				newAffectedVesion = append(newAffectedVesion, av)
-				lastVersion = ""
-			}
-		}
-
-		if lastVersion == "" && strings.Count(startVersion, ".") == 1 {
-			ver, err := version.NewSemver(v.AffectedVersions[len(v.AffectedVersions)-1].Introduced + ".0")
-			if err == nil {
-				versionParts := ver.Segments()
-				if len(versionParts) == 3 {
-					fixed := fmt.Sprintf("%d.%d.%d", versionParts[0], versionParts[1]+1, versionParts[2])
-					newAffectedVesion = append(newAffectedVesion, &Version{Introduced: startVersion + ".0", Fixed: fixed})
-				}
-			}
-		}
-		v.AffectedVersions = newAffectedVesion
-	}
-
 	affected := make([]*Affected, 0)
 	for _, av := range v.AffectedVersions {
 		if len(av.Introduced) == 0 {
@@ -293,56 +113,60 @@ func GetAffectedEvents(v *Vulnerability) []*Affected {
 	return affected
 }
 
-func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
-	if strings.Contains(v.Version, "n/a") && len(v.LessThan) == 0 && len(v.LessThanOrEqual) == 0 {
-		return v, false
-	}
-	if (v.LessThanOrEqual == "unspecified" || v.LessThan == "unspecified") && len(v.Version) > 0 {
-		return v, false
-	}
-	if v.LessThanOrEqual == "<=" {
-		v.LessThanOrEqual = v.Version
-	}
-	if strings.HasPrefix(v.Version, "< ") {
-		v.LessThan = strings.TrimPrefix(v.Version, "< ")
-	}
-	if strings.HasPrefix(v.Version, "<= ") {
-		v.LessThanOrEqual = strings.TrimPrefix(v.Version, "<= ")
-	}
-	if strings.HasPrefix(strings.TrimSpace(v.Version), "prior to") {
-		priorToVersion := strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
-		if strings.Count(priorToVersion, ".") == 1 {
-			priorToVersion = priorToVersion + ".0"
-		}
-		v.LessThan = priorToVersion
-		v.Version = priorToVersion
-	}
-	if strings.HasPrefix(strings.TrimSpace(v.LessThan), "prior to") {
-		v.LessThan = strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
-	}
-	if strings.HasSuffix(strings.TrimSpace(v.LessThan), "*") {
-		v.Version = strings.TrimSpace(strings.ReplaceAll(v.LessThan, "*", ""))
-		v.LessThan = ""
-	}
-	if strings.HasSuffix(strings.TrimSpace(v.Version), ".x") {
-		v.Version = strings.TrimSpace(fmt.Sprintf("%s%s", v.Version[:strings.LastIndex(v.Version, ".")], ""))
-	}
-	return &MitreVersion{
-		Version:         utils.TrimString(v.Version, []string{"v", "V"}),
-		LessThanOrEqual: utils.TrimString(v.LessThanOrEqual, []string{"v", "V"}),
-		LessThan:        utils.TrimString(v.LessThan, []string{"v", "V"}),
-	}, true
-}
-
-func getComponentName(officialK8sCve *Vulnerability, mitreCve *Vulnerability) string {
+func getComponentName(k8sComponent string, mitreCve *Vulnerability) string {
 	// prefer mitre component if exists
 	if len(mitreCve.Component) != 0 && strings.ToLower(mitreCve.Component) != "kubernetes" {
-		officialK8sCve.Component = mitreCve.Component
+		k8sComponent = mitreCve.Component
 	}
-	upstreamPrefix := upstreamOrgByName(officialK8sCve.Component)
+	upstreamPrefix := utils.UpstreamOrgByName(k8sComponent)
 	if upstreamPrefix != "" {
-		return strings.ToLower(fmt.Sprintf("%s/%s", upstreamPrefix, upstreamRepoByName(officialK8sCve.Component)))
+		return strings.ToLower(fmt.Sprintf("%s/%s", upstreamPrefix, utils.UpstreamRepoByName(k8sComponent)))
 	}
-	av := upstreamOrgByName(mitreCve.Component)
-	return strings.ToLower(fmt.Sprintf("%s/%s", av, upstreamRepoByName(mitreCve.Component)))
+	av := utils.UpstreamOrgByName(mitreCve.Component)
+	return strings.ToLower(fmt.Sprintf("%s/%s", av, utils.UpstreamRepoByName(mitreCve.Component)))
+}
+
+func ValidateCveData(cves []*Vulnerability) error {
+	var result error
+	for _, cve := range cves {
+		if len(cve.ID) == 0 {
+			result = multierror.Append(result, fmt.Errorf("\nid is mssing on cve #%s", cve.ID))
+		}
+		if len(cve.CreatedAt) == 0 {
+			result = multierror.Append(result, fmt.Errorf("\nCreatedAt is mssing on cve #%s", cve.ID))
+		}
+		if len(cve.Summary) == 0 {
+			result = multierror.Append(result, fmt.Errorf("\nSummary is mssing on cve #%s", cve.ID))
+		}
+		if len(strings.TrimPrefix(cve.Component, utils.UpstreamOrgByName(cve.Component))) == 0 {
+			result = multierror.Append(result, fmt.Errorf("\nComponent is mssing on cve #%s", cve.ID))
+		}
+		if len(cve.Description) == 0 {
+			result = multierror.Append(result, fmt.Errorf("\nDescription is mssing on cve #%s", cve.ID))
+		}
+		if len(cve.Affected) == 0 {
+			result = multierror.Append(result, fmt.Errorf("\nFixedVersion is missing on cve #%s", cve.ID))
+		}
+		if len(cve.Affected) > 0 {
+			for _, v := range cve.AffectedVersions {
+				_, err := version.Parse(v.Introduced)
+				if err != nil {
+					result = multierror.Append(result, fmt.Errorf("\nAffectedVersion From %s is invalid on cve #%s", v.Introduced, cve.ID))
+				}
+			}
+		}
+		if cve.CvssV3.Score == 0 {
+			result = multierror.Append(result, fmt.Errorf("\nVector is mssing on cve #%s", cve.ID))
+		}
+		if cve.CvssV3.Vector == "" {
+			result = multierror.Append(result, fmt.Errorf("\nVector is mssing on cve #%s", cve.ID))
+		}
+		if cve.Severity == "" {
+			result = multierror.Append(result, fmt.Errorf("\nSeverity is mssing on cve #%s", cve.ID))
+		}
+		if len(cve.Urls) == 0 {
+			result = multierror.Append(result, fmt.Errorf("\nUrls is mssing on cve #%s", cve.ID))
+		}
+	}
+	return result
 }
