@@ -212,6 +212,7 @@ func (s byVersion) Less(i, j int) bool {
 
 func mergeVersionRange(affectedVersions []*Version) []*Version {
 	// this special handling is made to handle to case of conceutive vulnable major versions
+	//  vulnerable 1.3, 1.4, 1.5, 1.6 and prior to versions 1.7.14, 1.8.9
 	newAffectedVesion := make([]*Version, 0)
 	sort.Sort(byVersion(affectedVersions))
 	var startVersion, lastVersion string
