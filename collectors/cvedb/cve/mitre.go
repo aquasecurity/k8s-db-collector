@@ -84,12 +84,9 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 					}
 					switch {
 					case len(strings.TrimSpace(v.LessThanOrEqual)) > 0:
-						introduce, lastAffected = utils.ExtractVersions(v.LessThanOrEqual, v.Version, utils.LessThanOrEqual)
+						introduce, lastAffected = utils.ExtractVersions(v.LessThanOrEqual, v.Version, true)
 					case len(strings.TrimSpace(v.LessThan)) > 0:
-						introduce, lastAffected = utils.ExtractVersions(v.LessThan, v.Version, utils.LessThen)
-						if strings.HasSuffix(v.LessThan, ".0") {
-							introduce = "0"
-						}
+						introduce, lastAffected = utils.ExtractVersions(v.LessThan, v.Version, false)
 						fixed = v.LessThan
 					default:
 						// incase all major version is vulnerable
@@ -97,7 +94,7 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 							requireMerge = true
 							introduce = v.Version
 						} else {
-							introduce, lastAffected = utils.ExtractVersions("", v.Version, "")
+							introduce, lastAffected = utils.ExtractRangeVersions(v.Version)
 						}
 					}
 					ver := &Version{Introduced: introduce, Fixed: fixed, LastAffected: lastAffected}
@@ -107,7 +104,10 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 		}
 		vulnerableVersions := versions
 		if requireMerge {
-			vulnerableVersions = mergeVersionRange(versions)
+			vulnerableVersions, err = mergeVersionRange(versions)
+			if err != nil {
+				return nil, err
+			}
 		}
 		vector, severity, score := getMetrics(cve)
 		description := getDescription(cve.Containers.Cna.Descriptions)
@@ -210,8 +210,8 @@ func (s byVersion) Less(i, j int) bool {
 	return v1.LessThan(v2)
 }
 
-func mergeVersionRange(affectedVersions []*Version) []*Version {
-	// this special handling is made to handle to case of conceutive vulnable major versions
+func mergeVersionRange(affectedVersions []*Version) ([]*Version, error) {
+	// this special handling is made to handle to case of conceutive vulnable major versions example:
 	// vulnerable 1.3, 1.4, 1.5, 1.6 and prior to versions 1.7.14, 1.8.9 will be form as follow:
 	// Introduced: 1.3.0  LastAffected: 1.7.0
 	// Introduced: 1.7.0  Fixed: 1.7.14
@@ -238,17 +238,21 @@ func mergeVersionRange(affectedVersions []*Version) []*Version {
 		}
 	}
 
+	// this special handling is made to handle to case of conceutive vulnable major versions where no fixed version is provided example:
+	// vulnerable 1.3, 1.4, 1.5, 1.6  will be form as follow:
+	// Introduced: 1.3.0  Fixed: 1.7.0
 	if lastVersion == "" && strings.Count(startVersion, ".") == 1 {
 		ver, err := version.NewSemver(affectedVersions[len(affectedVersions)-1].Introduced + ".0")
-		if err == nil {
-			versionParts := ver.Segments()
-			if len(versionParts) == 3 {
-				fixed := fmt.Sprintf("%d.%d.%d", versionParts[0], versionParts[1]+1, versionParts[2])
-				newAffectedVesion = append(newAffectedVesion, &Version{Introduced: startVersion + ".0", Fixed: fixed})
-			}
+		if err != nil {
+			return nil, err
+		}
+		versionParts := ver.Segments()
+		if len(versionParts) == 3 {
+			fixed := fmt.Sprintf("%d.%d.%d", versionParts[0], versionParts[1]+1, versionParts[2])
+			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: startVersion + ".0", Fixed: fixed})
 		}
 	}
-	return newAffectedVesion
+	return newAffectedVesion, nil
 }
 
 func getMetrics(cve MitreCVE) (string, string, float64) {
