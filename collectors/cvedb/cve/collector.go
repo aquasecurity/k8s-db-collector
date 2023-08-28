@@ -32,7 +32,7 @@ func Collect() (*K8sVulnDB, error) {
 }
 
 const (
-	// Kubernetes is a container orchestration system for Docker containers
+	// excludeNonCoreComponentsCves exclude  cves with missing data or non k8s core components
 	excludeNonCoreComponentsCves = "CVE-2019-11255,CVE-2020-10749,CVE-2020-8554"
 )
 
@@ -52,14 +52,20 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 		externalURL := i["external_url"].(string)
 		for _, cveID := range utils.GetMultiIDs(id) {
 			vulnerability, err := parseMitreCve(externalURL, cveID)
-			if err != nil || len(vulnerability.Component) == 0 {
+			if err != nil {
+				return nil, err
+			}
+			if len(vulnerability.Component) == 0 ||
+				len(vulnerability.AffectedVersions) == 0 ||
+				len(vulnerability.CvssV3.Vector) == 0 {
 				continue
 			}
-			if len(vulnerability.AffectedVersions) == 0 {
-				continue
-			}
+
 			contentText := i["content_text"].(string)
-			component := utils.GetComponentFromDescriptionAndffected(contentText)
+			component := vulnerability.Component
+			if component == "kubernetes" {
+				component = utils.GetComponentFromDescription(contentText)
+			}
 
 			fullVulnerabilities = append(fullVulnerabilities, &Vulnerability{
 				ID:          cveID,
@@ -114,16 +120,13 @@ func GetAffectedEvents(v *Vulnerability) []*Affected {
 }
 
 func getComponentName(k8sComponent string, mitreCve *Vulnerability) string {
-	// prefer mitre component if exists
-	if len(mitreCve.Component) != 0 && strings.ToLower(mitreCve.Component) != "kubernetes" {
+	if len(k8sComponent) == 0 {
 		k8sComponent = mitreCve.Component
 	}
-	upstreamPrefix := utils.UpstreamOrgByName(k8sComponent)
-	if upstreamPrefix != "" {
-		return strings.ToLower(fmt.Sprintf("%s/%s", upstreamPrefix, utils.UpstreamRepoByName(k8sComponent)))
+	if strings.ToLower(mitreCve.Component) != "kubernetes" {
+		k8sComponent = mitreCve.Component
 	}
-	av := utils.UpstreamOrgByName(mitreCve.Component)
-	return strings.ToLower(fmt.Sprintf("%s/%s", av, utils.UpstreamRepoByName(mitreCve.Component)))
+	return strings.ToLower(fmt.Sprintf("%s/%s", utils.UpstreamOrgByName(k8sComponent), utils.UpstreamRepoByName(k8sComponent)))
 }
 
 func ValidateCveData(cves []*Vulnerability) error {

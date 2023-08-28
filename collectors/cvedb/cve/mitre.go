@@ -54,7 +54,6 @@ type Descriptions struct {
 }
 
 func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
-
 	if strings.HasPrefix(externalURL, cveList) {
 		var cve MitreCVE
 		response, err := http.Get(fmt.Sprintf("%s/%s", mitreURL, cveID))
@@ -74,35 +73,35 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 		var requireMerge bool
 		for _, a := range cve.Containers.Cna.Affected {
 			if len(component) == 0 {
-				component = a.Product
+				component = strings.ToLower(a.Product)
 			}
 			for _, sv := range a.Versions {
 				if sv.Status == "affected" {
-					var from, to, fixed string
+					var introduce, lastAffected, fixed string
 					v, ok := sanitizedVersion(sv)
 					if !ok {
 						continue
 					}
 					switch {
 					case len(strings.TrimSpace(v.LessThanOrEqual)) > 0:
-						from, to = utils.ExtractVersions(v.LessThanOrEqual, v.Version, "lessThenEqual")
+						introduce, lastAffected = utils.ExtractVersions(v.LessThanOrEqual, v.Version, utils.LessThanOrEqual)
 					case len(strings.TrimSpace(v.LessThan)) > 0:
-						from, to = utils.ExtractVersions(v.LessThan, v.Version, "lessThen")
+						introduce, lastAffected = utils.ExtractVersions(v.LessThan, v.Version, utils.LessThen)
 						if strings.HasSuffix(v.LessThan, ".0") {
-							from = "0"
+							introduce = "0"
 						}
 						fixed = v.LessThan
 					default:
+						// incase all major version is vulnerable
 						if strings.Count(v.Version, ".") == 1 {
 							requireMerge = true
-							from = v.Version
+							introduce = v.Version
 						} else {
-							from, to = utils.ExtractVersions("", v.Version, "")
+							introduce, lastAffected = utils.ExtractVersions("", v.Version, "")
 						}
 					}
-					ver := &Version{Introduced: from, Fixed: fixed, LastAffected: to}
+					ver := &Version{Introduced: introduce, Fixed: fixed, LastAffected: lastAffected}
 					versions = append(versions, ver)
-
 				}
 			}
 		}
@@ -113,7 +112,10 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 		vector, severity, score := getMetrics(cve)
 		description := getDescription(cve.Containers.Cna.Descriptions)
 		if strings.ToLower(component) == "kubernetes" {
-			component = utils.GetComponentFromDescriptionAndffected(description)
+			product := utils.GetComponentFromDescription(description)
+			if len(product) > 0 {
+				component = product
+			}
 		}
 		return &Vulnerability{
 			Component:        component,

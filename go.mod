@@ -3,14 +3,13 @@ module github.com/aquasecurity/k8s-db-collector
 go 1.18
 
 require (
-	github.com/aquasecurity/go-version v0.0.0-20210121072130-637058cfe492
 	github.com/goark/go-cvss v1.6.6
 	github.com/stretchr/testify v1.8.4
-	github.com/yuin/goldmark v1.5.6
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f
 )
 
 require (
+	github.com/aquasecurity/go-version v0.0.0-20210121072130-637058cfe492 // indirect
 	github.com/goark/errs v1.1.0 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
