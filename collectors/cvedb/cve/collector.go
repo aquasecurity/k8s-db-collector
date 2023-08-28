@@ -50,6 +50,9 @@ type Containers struct {
 			CvssV3_1 struct {
 				VectorString string
 			}
+			CvssV3_0 struct {
+				VectorString string
+			}
 		}
 	}
 }
@@ -84,6 +87,9 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 		}
 		versions := make([]*Version, 0)
 		var component string
+		if cve.CveMetadata.CveId == "CVE-2017-1002101" {
+			fmt.Print("here")
+		}
 		for _, a := range cve.Containers.Cna.Affected {
 			if len(component) == 0 {
 				component = a.Product
@@ -123,14 +129,20 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 			currentVuln.Description = cve.Containers.Cna.Descriptions[0].Value
 		}
 		currentVuln.AffectedVersions = versions
+
 		if len(cve.Containers.Cna.Metrics) > 0 {
-			secerity, score := utils.CvssVectorToScore(cve.Containers.Cna.Metrics[0].CvssV3_1.VectorString)
+			vectorString := cve.Containers.Cna.Metrics[0].CvssV3_0.VectorString
+			if len(vectorString) == 0 {
+				vectorString = cve.Containers.Cna.Metrics[0].CvssV3_1.VectorString
+			}
+			secerity, score := utils.CvssVectorToScore(vectorString)
 			currentVuln.CvssV3 = Cvssv3{
-				Vector: cve.Containers.Cna.Metrics[0].CvssV3_1.VectorString,
+				Vector: vectorString,
 				Score:  score,
 			}
 			currentVuln.Severity = secerity
 		}
+
 		if strings.ToLower(currentVuln.Component) == "kubernetes" {
 			if v := getComponentFromDescriptionAndffected(currentVuln.Description); v != "" {
 				currentVuln.Component = v
@@ -171,15 +183,16 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 			if len(mitreCve.AffectedVersions) == 0 {
 				continue
 			}
+			officialK8sCve.CvssV3 = mitreCve.CvssV3
+			officialK8sCve.Severity = mitreCve.Severity
 			officialK8sCve.Component = getComponentName(officialK8sCve, mitreCve)
 			if len(mitreCve.Description) > 0 {
 				officialK8sCve.Description = mitreCve.Description
 			}
-			officialK8sCve.AffectedVersions = mitreCve.AffectedVersions
 			if mitreCve.MajorVersion {
 				officialK8sCve.MajorVersion = true
 			}
-			updateAffectedEvents(officialK8sCve)
+			officialK8sCve.Affected = GetAffectedEvents(mitreCve)
 			fullVulnerabilities = append(fullVulnerabilities, officialK8sCve)
 		}
 	}
@@ -212,7 +225,7 @@ func (s byVersion) Less(i, j int) bool {
 	return v1.LessThan(v2)
 }
 
-func updateAffectedEvents(v *Vulnerability) {
+func GetAffectedEvents(v *Vulnerability) []*Affected {
 	// this special handling is made to handle to case of conceutive vulnable major versions
 	if v.MajorVersion {
 		newAffectedVesion := make([]*Version, 0)
@@ -249,6 +262,7 @@ func updateAffectedEvents(v *Vulnerability) {
 		v.AffectedVersions = newAffectedVesion
 	}
 
+	affected := make([]*Affected, 0)
 	for _, av := range v.AffectedVersions {
 		if len(av.Introduced) == 0 {
 			continue
@@ -274,8 +288,9 @@ func updateAffectedEvents(v *Vulnerability) {
 			RangeType: semver,
 			Events:    events,
 		})
-		v.Affected = append(v.Affected, &Affected{Ranges: ranges})
+		affected = append(affected, &Affected{Ranges: ranges})
 	}
+	return affected
 }
 
 func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
@@ -324,12 +339,10 @@ func getComponentName(officialK8sCve *Vulnerability, mitreCve *Vulnerability) st
 	if len(mitreCve.Component) != 0 && strings.ToLower(mitreCve.Component) != "kubernetes" {
 		officialK8sCve.Component = mitreCve.Component
 	}
-	officialK8sCve.CvssV3 = mitreCve.CvssV3
-	officialK8sCve.Severity = mitreCve.Severity
-	upstreamPrefix := upstreamOrgByName(strings.TrimPrefix(officialK8sCve.Component, "kube-"))
+	upstreamPrefix := upstreamOrgByName(officialK8sCve.Component)
 	if upstreamPrefix != "" {
-		return strings.ToLower(fmt.Sprintf("%s/%s", upstreamPrefix, upstreamRepoByName(strings.TrimPrefix(officialK8sCve.Component, "kube-"))))
+		return strings.ToLower(fmt.Sprintf("%s/%s", upstreamPrefix, upstreamRepoByName(officialK8sCve.Component)))
 	}
-	av := upstreamOrgByName(strings.TrimPrefix(mitreCve.Component, "kube-"))
-	return strings.ToLower(fmt.Sprintf("%s/%s", av, upstreamRepoByName(strings.TrimPrefix(mitreCve.Component, "kube-"))))
+	av := upstreamOrgByName(mitreCve.Component)
+	return strings.ToLower(fmt.Sprintf("%s/%s", av, upstreamRepoByName(mitreCve.Component)))
 }

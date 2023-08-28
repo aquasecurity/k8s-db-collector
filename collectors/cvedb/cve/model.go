@@ -2,17 +2,17 @@ package cve
 
 var (
 	upstreamOrgName = map[string]string{
-		"k8s.io":      "controller-manager,kubelet,apiserver,kubectl,kubernetes,scheduler,proxy",
+		"k8s.io":      "controller-manager,kubelet,apiserver,kubectl,kubernetes,kube-scheduler,kube-proxy",
 		"sigs.k8s.io": "secrets-store-csi-driver",
 	}
 
 	upstreamRepoName = map[string]string{
-		"controller-manager":       "kube-controller-manager",
+		"kube-controller-manager":  "controller-manager",
 		"kubelet":                  "kubelet",
-		"apiserver":                "apiserver",
+		"kube-apiserver":           "apiserver",
 		"kubectl":                  "kubectl",
 		"kubernetes":               "kubernetes",
-		"scheduler":                "kube-scheduler",
+		"kube-scheduler":           "kube-scheduler",
 		"kube-proxy":               "kube-proxy",
 		"api server":               "apiserver",
 		"secrets-store-csi-driver": "secrets-store-csi-driver",

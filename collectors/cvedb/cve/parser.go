@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
@@ -108,7 +107,6 @@ func extractComponentsAndDescFromOfficialK8sCve(doc string) CVEDoc {
 func ValidateCveData(cves []*Vulnerability) error {
 	var result error
 	for _, cve := range cves {
-		newCve := isNewCve(cve.ID)
 		if len(cve.ID) == 0 {
 			result = multierror.Append(result, fmt.Errorf("\nid is mssing on cve #%s", cve.ID))
 		}
@@ -118,16 +116,16 @@ func ValidateCveData(cves []*Vulnerability) error {
 		if len(cve.Summary) == 0 {
 			result = multierror.Append(result, fmt.Errorf("\nSummary is mssing on cve #%s", cve.ID))
 		}
-		if newCve && len(strings.TrimPrefix(cve.Component, upstreamOrgByName(cve.Component))) == 0 {
+		if len(strings.TrimPrefix(cve.Component, upstreamOrgByName(cve.Component))) == 0 {
 			result = multierror.Append(result, fmt.Errorf("\nComponent is mssing on cve #%s", cve.ID))
 		}
-		if newCve && len(cve.Description) == 0 {
+		if len(cve.Description) == 0 {
 			result = multierror.Append(result, fmt.Errorf("\nDescription is mssing on cve #%s", cve.ID))
 		}
-		if newCve && len(cve.Affected) == 0 {
+		if len(cve.Affected) == 0 {
 			result = multierror.Append(result, fmt.Errorf("\nFixedVersion is missing on cve #%s", cve.ID))
 		}
-		if newCve && len(cve.Affected) > 0 {
+		if len(cve.Affected) > 0 {
 			for _, v := range cve.AffectedVersions {
 				_, err := version.Parse(v.Introduced)
 				if err != nil {
@@ -135,24 +133,20 @@ func ValidateCveData(cves []*Vulnerability) error {
 				}
 			}
 		}
+		if cve.CvssV3.Score == 0 {
+			result = multierror.Append(result, fmt.Errorf("\nVector is mssing on cve #%s", cve.ID))
+		}
+		if cve.CvssV3.Vector == "" {
+			result = multierror.Append(result, fmt.Errorf("\nVector is mssing on cve #%s", cve.ID))
+		}
+		if cve.Severity == "" {
+			result = multierror.Append(result, fmt.Errorf("\nSeverity is mssing on cve #%s", cve.ID))
+		}
 		if len(cve.Urls) == 0 {
 			result = multierror.Append(result, fmt.Errorf("\nUrls is mssing on cve #%s", cve.ID))
 		}
 	}
 	return result
-}
-
-func isNewCve(cveID string) bool {
-	cveParts := strings.Split(cveID, "-")
-	if len(cveParts) > 1 {
-		if cveParts[0] != "CVE" {
-			return false
-		}
-		if year, err := strconv.Atoi(cveParts[1]); err == nil {
-			return year >= 2023
-		}
-	}
-	return false
 }
 
 func upstreamOrgByName(component string) string {
