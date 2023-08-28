@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	version "github.com/aquasecurity/go-pep440-version"
 	"github.com/aquasecurity/k8s-db-collector/collectors/cvedb/utils"
+
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -152,9 +152,11 @@ func ValidateCveData(cves []*Vulnerability) error {
 		}
 		if len(cve.Affected) > 0 {
 			for _, v := range cve.AffectedVersions {
-				_, err := version.Parse(v.Introduced)
-				if err != nil {
+				if len(v.Introduced) == 0 {
 					result = multierror.Append(result, fmt.Errorf("\nAffectedVersion From %s is invalid on cve #%s", v.Introduced, cve.ID))
+				}
+				if len(v.Fixed) == 0 && len(v.LastAffected) == 0 {
+					result = multierror.Append(result, fmt.Errorf("\nAffectedVersion From %s is invalid on cve #%s", v.LastAffected, cve.ID))
 				}
 			}
 		}
