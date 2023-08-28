@@ -8,6 +8,7 @@ import (
 
 	version "github.com/aquasecurity/go-pep440-version"
 	"github.com/goark/go-cvss/v3/metric"
+	"golang.org/x/exp/maps"
 )
 
 const (
@@ -128,15 +129,17 @@ func CvssVectorToScore(vector string) (string, float64) {
 }
 
 func ExtractVersions(lessOps, origVersion string, ftype string) (string, string) {
-	var introduce, lastAffected string
+	var lastAffected string
+	introduce := origVersion
 	if (ftype == LessThen || ftype == LessThanOrEqual) && len(lessOps) > 0 {
-		introduce = origVersion
-		if origVersion != "0" {
+		if introduce != "0" {
 			if strings.Count(introduce, ".") == 1 {
 				introduce = introduce + ".0"
 			} else {
 				lIndex := strings.LastIndex(lessOps, ".")
-				introduce = strings.TrimSpace(fmt.Sprintf("%s.%s", lessOps[:lIndex], "0"))
+				if lIndex != -1 {
+					introduce = strings.TrimSpace(fmt.Sprintf("%s.%s", lessOps[:lIndex], "0"))
+				}
 			}
 		}
 		if ftype == LessThanOrEqual {
@@ -147,10 +150,7 @@ func ExtractVersions(lessOps, origVersion string, ftype string) (string, string)
 
 	validVersion := make([]string, 0)
 	// clean unwanted strings from versions
-	for key := range UpstreamRepoName {
-		origVersion = strings.TrimSpace(strings.ReplaceAll(origVersion, key, ""))
-	}
-	versionParts := strings.Split(origVersion, " ")
+	versionParts := strings.Split(TrimString(introduce, maps.Keys(UpstreamRepoName)), " ")
 	for _, p := range versionParts {
 		candidate, err := version.Parse(p)
 		if err != nil {
@@ -158,12 +158,11 @@ func ExtractVersions(lessOps, origVersion string, ftype string) (string, string)
 		}
 		validVersion = append(validVersion, candidate.String())
 	}
-	if len(validVersion) == 1 {
+	if len(validVersion) >= 1 {
 		introduce = strings.TrimSpace(validVersion[0])
-		return introduce, lastAffected
 	}
 	if len(validVersion) == 2 {
-		return strings.TrimSpace(validVersion[0]), strings.TrimSpace(validVersion[1])
+		lastAffected = strings.TrimSpace(validVersion[1])
 	}
 	return introduce, lastAffected
 }
@@ -221,14 +220,15 @@ func GetComponentFromDescription(descriptions ...string) string {
 	var compName string
 	var compCounter int
 	var kubeCtlVersionFound bool
+	CoreComponentsNaming := []string{"kube-controller-manager", "kubelet", "kube-apiserver", "kubectl", "kubernetes", "kube-scheduler", "kube-proxy", "secrets-store-csi-driver", "api server"}
 	for _, d := range descriptions {
-		for key, value := range UpstreamRepoName {
+		for _, key := range CoreComponentsNaming {
 			if key == "kubernetes" {
 				continue
 			}
 			if strings.Contains(strings.ToLower(d), key) {
 				c := strings.Count(strings.ToLower(d), key)
-				if value == compName {
+				if UpstreamRepoName[key] == compName {
 					compCounter = compCounter + c
 				}
 				if strings.Contains(strings.ToLower(d), "kubectl version") {
@@ -236,7 +236,7 @@ func GetComponentFromDescription(descriptions ...string) string {
 				}
 				if c > compCounter {
 					compCounter = c
-					compName = value
+					compName = UpstreamRepoName[key]
 				}
 			}
 		}

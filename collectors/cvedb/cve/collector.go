@@ -148,7 +148,7 @@ func ValidateCveData(cves []*Vulnerability) error {
 			result = multierror.Append(result, fmt.Errorf("\nDescription is mssing on cve #%s", cve.ID))
 		}
 		if len(cve.Affected) == 0 {
-			result = multierror.Append(result, fmt.Errorf("\nFixedVersion is missing on cve #%s", cve.ID))
+			result = multierror.Append(result, fmt.Errorf("\nAffected Version is missing on cve #%s", cve.ID))
 		}
 		if len(cve.Affected) > 0 {
 			for _, v := range cve.AffectedVersions {
