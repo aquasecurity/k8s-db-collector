@@ -163,7 +163,10 @@ func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
 		v.LessThan = ""
 	}
 	if strings.HasSuffix(strings.TrimSpace(v.Version), ".x") {
-		v.Version = strings.TrimSpace(fmt.Sprintf("%s%s", v.Version[:strings.LastIndex(v.Version, ".")], ""))
+		li := strings.LastIndex(v.Version, ".")
+		if li != -1 {
+			v.Version = strings.TrimSpace(fmt.Sprintf("%s%s", v.Version[:li], ""))
+		}
 	}
 	if strings.Contains(v.LessThanOrEqual, "<=") {
 		v.LessThanOrEqual = strings.TrimSpace(strings.ReplaceAll(strings.TrimSpace(v.LessThanOrEqual), "<=", ""))
