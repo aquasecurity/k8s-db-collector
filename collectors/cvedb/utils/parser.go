@@ -51,23 +51,22 @@ func CvssVectorToScore(vector string) (string, float64) {
 
 func ExtractVersions(lessOps, introduce string, lessThanOrEqual bool) (string, string) {
 	var lastAffected string
-	if introduce != "0" {
-		if strings.Count(introduce, ".") == 1 {
-			introduce = introduce + ".0"
-		} else {
-			lIndex := strings.LastIndex(lessOps, ".")
-			if lIndex != -1 {
-				introduce = strings.TrimSpace(fmt.Sprintf("%s.%s", lessOps[:lIndex], "0"))
-			}
-		}
-	}
 	if lessThanOrEqual {
 		lastAffected = strings.TrimSpace(lessOps)
-	}
-	if !lessThanOrEqual {
+	} else {
 		if strings.HasSuffix(lessOps, ".0") {
 			introduce = "0"
 		}
+	}
+	if introduce == "0" {
+		return introduce, lastAffected
+	}
+	if strings.Count(introduce, ".") == 1 {
+		return introduce + ".0", lastAffected
+	}
+
+	if lIndex := strings.LastIndex(lessOps, "."); lIndex != -1 {
+		return strings.TrimSpace(fmt.Sprintf("%s.%s", lessOps[:lIndex], "0")), lastAffected
 	}
 	return introduce, lastAffected
 }
@@ -129,12 +128,9 @@ func GetComponentFromDescription(descriptions string) string {
 	var compName string
 	var compCounter int
 	var kubeCtlVersionFound bool
-	CoreComponentsNaming := []string{"kube-controller-manager", "kubelet", "kube-apiserver", "kubectl", "kubernetes", "kube-scheduler", "kube-proxy", "secrets-store-csi-driver", "api server"}
+	CoreComponentsNaming := []string{"kube-controller-manager", "kubelet", "kube-apiserver", "kubectl", "kube-scheduler", "kube-proxy", "secrets-store-csi-driver", "api server"}
 
 	for _, key := range CoreComponentsNaming {
-		if key == "kubernetes" {
-			continue
-		}
 		if strings.Contains(strings.ToLower(descriptions), key) {
 			c := strings.Count(strings.ToLower(descriptions), key)
 			if UpstreamRepoName[key] == compName {
@@ -149,6 +145,7 @@ func GetComponentFromDescription(descriptions string) string {
 			}
 		}
 	}
+	// in case found kubectl in env description and only one component found
 	if kubeCtlVersionFound && compName == "kubectl" && compCounter == 1 {
 		compName = ""
 	}
