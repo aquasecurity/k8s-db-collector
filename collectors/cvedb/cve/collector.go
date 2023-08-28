@@ -320,7 +320,7 @@ func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
 }
 
 func getComponentName(officialK8sCve *Vulnerability, mitreCve *Vulnerability) string {
-	// prefet mitre component if exists
+	// prefer mitre component if exists
 	if len(mitreCve.Component) != 0 && strings.ToLower(mitreCve.Component) != "kubernetes" {
 		officialK8sCve.Component = mitreCve.Component
 	}
