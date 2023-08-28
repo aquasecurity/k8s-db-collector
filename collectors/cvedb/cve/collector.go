@@ -213,6 +213,7 @@ func (s byVersion) Less(i, j int) bool {
 }
 
 func updateAffectedEvents(v *Vulnerability) {
+	// this special handling is made to handle to case of conceutive vulnable major versions
 	if v.MajorVersion {
 		newAffectedVesion := make([]*Version, 0)
 		sort.Sort(byVersion(v.AffectedVersions))
@@ -234,6 +235,7 @@ func updateAffectedEvents(v *Vulnerability) {
 				lastVersion = ""
 			}
 		}
+
 		if lastVersion == "" && strings.Count(startVersion, ".") == 1 {
 			ver, err := version.NewSemver(v.AffectedVersions[len(v.AffectedVersions)-1].Introduced + ".0")
 			if err == nil {
@@ -246,6 +248,7 @@ func updateAffectedEvents(v *Vulnerability) {
 		}
 		v.AffectedVersions = newAffectedVesion
 	}
+
 	for _, av := range v.AffectedVersions {
 		if len(av.Introduced) == 0 {
 			continue
