@@ -10,6 +10,25 @@ import (
 	"github.com/goark/go-cvss/v3/metric"
 )
 
+var (
+	UpstreamOrgName = map[string]string{
+		"k8s.io":      "controller-manager,kubelet,apiserver,kubectl,kubernetes,kube-scheduler,kube-proxy",
+		"sigs.k8s.io": "secrets-store-csi-driver",
+	}
+
+	UpstreamRepoName = map[string]string{
+		"kube-controller-manager":  "controller-manager",
+		"kubelet":                  "kubelet",
+		"kube-apiserver":           "apiserver",
+		"kubectl":                  "kubectl",
+		"kubernetes":               "kubernetes",
+		"kube-scheduler":           "kube-scheduler",
+		"kube-proxy":               "kube-proxy",
+		"api server":               "apiserver",
+		"secrets-store-csi-driver": "secrets-store-csi-driver",
+	}
+)
+
 func TrimString(version string, trimValues []string) string {
 	for _, v := range trimValues {
 		version = strings.ReplaceAll(version, v, "")
@@ -105,26 +124,26 @@ func CvssVectorToScore(vector string) (string, float64) {
 
 func ExtractVersions(lessOps, origVersion string, ftype string) (string, string) {
 	var from, to string
-	tv := strings.TrimSpace(strings.ReplaceAll(strings.TrimSpace(lessOps), "<=", ""))
 	if (ftype == "lessThen" || ftype == "lessThenEqual") && len(lessOps) > 0 {
 		from = origVersion
 		if origVersion != "0" {
 			if strings.Count(from, ".") == 1 {
 				from = from + ".0"
 			} else {
-				lIndex := strings.LastIndex(tv, ".")
+				lIndex := strings.LastIndex(lessOps, ".")
 				from = strings.TrimSpace(fmt.Sprintf("%s.%s", lessOps[:lIndex], "0"))
 			}
 		}
 		if ftype == "lessThenEqual" {
-			to = strings.TrimSpace(tv)
+			to = strings.TrimSpace(lessOps)
 		}
 		return from, to
 	}
 
 	validVersion := make([]string, 0)
-	for _, c := range []string{"controller-manager, kubelet, apiserver, kubectl", "-"} {
-		origVersion = strings.TrimSpace(strings.ReplaceAll(origVersion, c, ""))
+	// clean unwanted strings from versions
+	for key := range UpstreamRepoName {
+		origVersion = strings.TrimSpace(strings.ReplaceAll(origVersion, key, ""))
 	}
 	versionParts := strings.Split(origVersion, " ")
 	for _, p := range versionParts {
@@ -135,7 +154,6 @@ func ExtractVersions(lessOps, origVersion string, ftype string) (string, string)
 		validVersion = append(validVersion, candidate.String())
 	}
 	if len(validVersion) == 1 {
-		var to string
 		from = strings.TrimSpace(validVersion[0])
 		return from, to
 	}
@@ -160,4 +178,66 @@ func FindVersion(versionString string) string {
 		}
 	}
 	return versionString
+}
+
+func GetMultiIDs(id string) []string {
+	var idsList []string
+	if strings.Contains(id, ",") {
+		idParts := strings.Split(id, ",")
+		for _, p := range idParts {
+			if strings.HasPrefix(strings.TrimSpace(p), "CVE-") {
+				idsList = append(idsList, strings.TrimSpace(p))
+			}
+		}
+		return idsList
+	}
+	return []string{id}
+}
+
+func UpstreamOrgByName(component string) string {
+	for key, components := range UpstreamOrgName {
+		for _, c := range strings.Split(components, ",") {
+			if strings.TrimSpace(c) == strings.ToLower(component) {
+				return key
+			}
+		}
+	}
+	return ""
+}
+
+func UpstreamRepoByName(component string) string {
+	if val, ok := UpstreamRepoName[component]; ok {
+		return val
+	}
+	return component
+}
+
+func GetComponentFromDescriptionAndffected(descriptions ...string) string {
+	var compName string
+	var compCounter int
+	var kubeCtlVersionFound bool
+	for _, d := range descriptions {
+		for key, value := range UpstreamRepoName {
+			if key == "kubernetes" {
+				continue
+			}
+			if strings.Contains(strings.ToLower(d), key) {
+				c := strings.Count(strings.ToLower(d), key)
+				if value == compName {
+					compCounter = compCounter + c
+				}
+				if strings.Contains(strings.ToLower(d), "kubectl version") {
+					kubeCtlVersionFound = true
+				}
+				if c > compCounter {
+					compCounter = c
+					compName = value
+				}
+			}
+		}
+	}
+	if kubeCtlVersionFound && compName == "kubectl" && compCounter == 1 {
+		compName = ""
+	}
+	return compName
 }

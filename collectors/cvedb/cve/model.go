@@ -1,24 +1,5 @@
 package cve
 
-var (
-	upstreamOrgName = map[string]string{
-		"k8s.io":      "controller-manager,kubelet,apiserver,kubectl,kubernetes,scheduler,proxy",
-		"sigs.k8s.io": "secrets-store-csi-driver",
-	}
-
-	upstreamRepoName = map[string]string{
-		"controller-manager":       "kube-controller-manager",
-		"kubelet":                  "kubelet",
-		"apiserver":                "apiserver",
-		"kubectl":                  "kubectl",
-		"kubernetes":               "kubernetes",
-		"scheduler":                "kube-scheduler",
-		"kube-proxy":               "kube-proxy",
-		"api server":               "apiserver",
-		"secrets-store-csi-driver": "secrets-store-csi-driver",
-	}
-)
-
 type Vulnerability struct {
 	ID               string      `json:"id,omitempty"`
 	CreatedAt        string      `json:"created_at,omitempty"`
@@ -26,13 +7,10 @@ type Vulnerability struct {
 	Component        string      `json:"component,omitempty"`
 	Description      string      `json:"details,omitempty"`
 	AffectedVersions []*Version  `json:"-"`
-	AffectedFixed    string      `json:"-"`
 	Affected         []*Affected `json:"affected,omitempty"`
-	FixedVersions    []*Version  `json:"-"`
 	Urls             []string    `json:"references,omitempty"`
 	CvssV3           Cvssv3      `json:"cvssv3,omitempty"`
 	Severity         string      `json:"severity,omitempty"`
-	Major            bool        `json:"-"`
 }
 
 type K8sVulnDB struct {
