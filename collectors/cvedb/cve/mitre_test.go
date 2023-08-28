@@ -62,7 +62,8 @@ func TestMergedVersion(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			gotLastAffected := mergeVersionRange(tt.affectedVersions)
+			gotLastAffected, err := mergeVersionRange(tt.affectedVersions)
+			assert.NoError(t, err)
 			assert.Equal(t, gotLastAffected, tt.WantAffectedVersions)
 
 		})

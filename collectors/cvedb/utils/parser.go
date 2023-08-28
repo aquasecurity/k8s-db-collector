@@ -49,26 +49,31 @@ func CvssVectorToScore(vector string) (string, float64) {
 	return bm.Severity().String(), bm.Score()
 }
 
-func ExtractVersions(lessOps, origVersion string, ftype string) (string, string) {
+func ExtractVersions(lessOps, introduce string, lessThanOrEqual bool) (string, string) {
 	var lastAffected string
-	introduce := origVersion
-	if (ftype == LessThen || ftype == LessThanOrEqual) && len(lessOps) > 0 {
-		if introduce != "0" {
-			if strings.Count(introduce, ".") == 1 {
-				introduce = introduce + ".0"
-			} else {
-				lIndex := strings.LastIndex(lessOps, ".")
-				if lIndex != -1 {
-					introduce = strings.TrimSpace(fmt.Sprintf("%s.%s", lessOps[:lIndex], "0"))
-				}
+	if introduce != "0" {
+		if strings.Count(introduce, ".") == 1 {
+			introduce = introduce + ".0"
+		} else {
+			lIndex := strings.LastIndex(lessOps, ".")
+			if lIndex != -1 {
+				introduce = strings.TrimSpace(fmt.Sprintf("%s.%s", lessOps[:lIndex], "0"))
 			}
 		}
-		if ftype == LessThanOrEqual {
-			lastAffected = strings.TrimSpace(lessOps)
-		}
-		return introduce, lastAffected
 	}
+	if lessThanOrEqual {
+		lastAffected = strings.TrimSpace(lessOps)
+	}
+	if !lessThanOrEqual {
+		if strings.HasSuffix(lessOps, ".0") {
+			introduce = "0"
+		}
+	}
+	return introduce, lastAffected
+}
 
+func ExtractRangeVersions(introduce string) (string, string) {
+	var lastAffected string
 	validVersion := make([]string, 0)
 	// clean unwanted strings from versions
 	versionParts := strings.Split(TrimString(introduce, maps.Keys(UpstreamRepoName)), " ")
@@ -120,28 +125,27 @@ func UpstreamRepoByName(component string) string {
 	return component
 }
 
-func GetComponentFromDescription(descriptions ...string) string {
+func GetComponentFromDescription(descriptions string) string {
 	var compName string
 	var compCounter int
 	var kubeCtlVersionFound bool
 	CoreComponentsNaming := []string{"kube-controller-manager", "kubelet", "kube-apiserver", "kubectl", "kubernetes", "kube-scheduler", "kube-proxy", "secrets-store-csi-driver", "api server"}
-	for _, d := range descriptions {
-		for _, key := range CoreComponentsNaming {
-			if key == "kubernetes" {
-				continue
+
+	for _, key := range CoreComponentsNaming {
+		if key == "kubernetes" {
+			continue
+		}
+		if strings.Contains(strings.ToLower(descriptions), key) {
+			c := strings.Count(strings.ToLower(descriptions), key)
+			if UpstreamRepoName[key] == compName {
+				compCounter = compCounter + c
 			}
-			if strings.Contains(strings.ToLower(d), key) {
-				c := strings.Count(strings.ToLower(d), key)
-				if UpstreamRepoName[key] == compName {
-					compCounter = compCounter + c
-				}
-				if strings.Contains(strings.ToLower(d), "kubectl version") {
-					kubeCtlVersionFound = true
-				}
-				if c > compCounter {
-					compCounter = c
-					compName = UpstreamRepoName[key]
-				}
+			if strings.Contains(strings.ToLower(descriptions), "kubectl version") {
+				kubeCtlVersionFound = true
+			}
+			if c > compCounter {
+				compCounter = c
+				compName = UpstreamRepoName[key]
 			}
 		}
 	}
