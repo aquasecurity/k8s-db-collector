@@ -21,7 +21,7 @@ const (
 func parseOfficialK8sCve(item interface{}, mid string) (*Vulnerability, error) {
 	i := item.(map[string]interface{})
 	contentText := i["content_text"].(string)
-	amendedDoc := extractVulnarableVersionAndDescFromOfficialK8sCve(contentText)
+	amendedDoc := extractComponentsAndDescFromOfficialK8sCve(contentText)
 	c := getComponentFromDescriptionAndffected(amendedDoc.AffectedFixed, amendedDoc.Description)
 	vulnerability := Vulnerability{
 		ID:            mid,
@@ -54,7 +54,7 @@ type CVEDoc struct {
 	Description   string
 }
 
-func extractVulnarableVersionAndDescFromOfficialK8sCve(doc string) CVEDoc {
+func extractComponentsAndDescFromOfficialK8sCve(doc string) CVEDoc {
 	var lineWriter bytes.Buffer
 	docReader := strings.NewReader(doc)
 	fileScanner := bufio.NewScanner(docReader)
