@@ -10,6 +10,11 @@ import (
 	"github.com/goark/go-cvss/v3/metric"
 )
 
+const (
+	LessThanOrEqual = "lessThenOrEqual"
+	LessThen        = "lessThen"
+)
+
 var (
 	UpstreamOrgName = map[string]string{
 		"k8s.io":      "controller-manager,kubelet,apiserver,kubectl,kubernetes,kube-scheduler,kube-proxy",
@@ -123,21 +128,21 @@ func CvssVectorToScore(vector string) (string, float64) {
 }
 
 func ExtractVersions(lessOps, origVersion string, ftype string) (string, string) {
-	var from, to string
-	if (ftype == "lessThen" || ftype == "lessThenEqual") && len(lessOps) > 0 {
-		from = origVersion
+	var introduce, lastAffected string
+	if (ftype == LessThen || ftype == LessThanOrEqual) && len(lessOps) > 0 {
+		introduce = origVersion
 		if origVersion != "0" {
-			if strings.Count(from, ".") == 1 {
-				from = from + ".0"
+			if strings.Count(introduce, ".") == 1 {
+				introduce = introduce + ".0"
 			} else {
 				lIndex := strings.LastIndex(lessOps, ".")
-				from = strings.TrimSpace(fmt.Sprintf("%s.%s", lessOps[:lIndex], "0"))
+				introduce = strings.TrimSpace(fmt.Sprintf("%s.%s", lessOps[:lIndex], "0"))
 			}
 		}
-		if ftype == "lessThenEqual" {
-			to = strings.TrimSpace(lessOps)
+		if ftype == LessThanOrEqual {
+			lastAffected = strings.TrimSpace(lessOps)
 		}
-		return from, to
+		return introduce, lastAffected
 	}
 
 	validVersion := make([]string, 0)
@@ -154,13 +159,13 @@ func ExtractVersions(lessOps, origVersion string, ftype string) (string, string)
 		validVersion = append(validVersion, candidate.String())
 	}
 	if len(validVersion) == 1 {
-		from = strings.TrimSpace(validVersion[0])
-		return from, to
+		introduce = strings.TrimSpace(validVersion[0])
+		return introduce, lastAffected
 	}
 	if len(validVersion) == 2 {
 		return strings.TrimSpace(validVersion[0]), strings.TrimSpace(validVersion[1])
 	}
-	return from, ""
+	return introduce, lastAffected
 }
 
 func FindVersion(versionString string) string {
@@ -212,7 +217,7 @@ func UpstreamRepoByName(component string) string {
 	return component
 }
 
-func GetComponentFromDescriptionAndffected(descriptions ...string) string {
+func GetComponentFromDescription(descriptions ...string) string {
 	var compName string
 	var compCounter int
 	var kubeCtlVersionFound bool
