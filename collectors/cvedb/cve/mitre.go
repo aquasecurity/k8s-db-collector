@@ -218,29 +218,29 @@ func mergeVersionRange(affectedVersions []*Version) ([]*Version, error) {
 
 	newAffectedVesion := make([]*Version, 0)
 	sort.Sort(byVersion(affectedVersions))
-	var startVersion, lastVersion string
+	var firstMajorVersion, lastMajorVersion string
 	for _, av := range affectedVersions {
-		if len(startVersion) == 0 && utils.MajorVersion(av.Introduced) {
-			startVersion = av.Introduced
+		if len(firstMajorVersion) == 0 && utils.MajorVersion(av.Introduced) {
+			firstMajorVersion = av.Introduced
 			continue
 		}
-		if strings.Count(av.Introduced, ".") > 1 && len(lastVersion) == 0 && len(startVersion) > 0 {
-			lastVersion = av.Introduced
-			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: startVersion + ".0", LastAffected: lastVersion})
+		if strings.Count(av.Introduced, ".") > 1 && len(lastMajorVersion) == 0 && len(firstMajorVersion) > 0 {
+			lastMajorVersion = av.Introduced
+			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: fmt.Sprintf("%s.0", firstMajorVersion), LastAffected: lastMajorVersion})
 			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: av.Introduced, LastAffected: av.LastAffected, Fixed: av.Fixed})
-			startVersion = ""
+			firstMajorVersion = ""
 			continue
 		}
-		if len(lastVersion) > 0 || len(startVersion) == 0 {
+		if len(lastMajorVersion) > 0 || len(firstMajorVersion) == 0 {
 			newAffectedVesion = append(newAffectedVesion, av)
-			lastVersion = ""
+			lastMajorVersion = ""
 		}
 	}
 
 	// this special handling is made to handle to case of conceutive vulnable major versions where no fixed version is provided example:
 	// vulnerable 1.3, 1.4, 1.5, 1.6  will be form as follow:
 	// Introduced: 1.3.0  Fixed: 1.7.0
-	if lastVersion == "" && utils.MajorVersion(startVersion) {
+	if lastMajorVersion == "" && utils.MajorVersion(firstMajorVersion) {
 		ver, err := version.NewSemver(affectedVersions[len(affectedVersions)-1].Introduced + ".0")
 		if err != nil {
 			return nil, err
@@ -248,7 +248,7 @@ func mergeVersionRange(affectedVersions []*Version) ([]*Version, error) {
 		versionParts := ver.Segments()
 		if len(versionParts) == 3 {
 			fixed := fmt.Sprintf("%d.%d.%d", versionParts[0], versionParts[1]+1, versionParts[2])
-			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: startVersion + ".0", Fixed: fixed})
+			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: fmt.Sprintf("%s.0", firstMajorVersion), Fixed: fixed})
 		}
 	}
 	return newAffectedVesion, nil
