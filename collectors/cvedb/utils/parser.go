@@ -49,24 +49,16 @@ func CvssVectorToScore(vector string) (string, float64) {
 	return bm.Severity().String(), bm.Score()
 }
 
-func ExtractVersions(lessOps, introduce string, lessThanOrEqual bool) (string, string) {
-	var lastAffected string
-	if lessThanOrEqual {
-		lastAffected = strings.TrimSpace(lessOps)
-	} else {
-		if strings.HasSuffix(lessOps, ".0") {
-			introduce = "0"
-		}
-	}
+func ExtractVersions(lastAffected, introduce string, lessThanOrEqual bool) (string, string) {
 	if introduce == "0" {
 		return introduce, lastAffected
 	}
-	if strings.Count(introduce, ".") == 1 {
+	if MinorVersion(introduce) {
 		return introduce + ".0", lastAffected
 	}
 
-	if lIndex := strings.LastIndex(lessOps, "."); lIndex != -1 {
-		return strings.TrimSpace(fmt.Sprintf("%s.%s", lessOps[:lIndex], "0")), lastAffected
+	if lIndex := strings.LastIndex(lastAffected, "."); lIndex != -1 {
+		return strings.TrimSpace(fmt.Sprintf("%s.%s", lastAffected[:lIndex], "0")), lastAffected
 	}
 	return introduce, lastAffected
 }
@@ -124,7 +116,10 @@ func UpstreamRepoByName(component string) string {
 	return component
 }
 
-func GetComponentFromDescription(descriptions string) string {
+func GetComponentFromDescription(descriptions string, currentComponent string) string {
+	if strings.ToLower(currentComponent) != "kubernetes" {
+		return currentComponent
+	}
 	var compName string
 	var compCounter int
 	var kubeCtlVersionFound bool
@@ -145,9 +140,14 @@ func GetComponentFromDescription(descriptions string) string {
 			}
 		}
 	}
-	// in case found kubectl in env description and only one component found
-	if kubeCtlVersionFound && compName == "kubectl" && compCounter == 1 {
-		compName = ""
+	// in case found kubectl in env description and only one component found or no component found then fallback to k8s.io/kubernetes component
+	if len(compName) == 0 || (kubeCtlVersionFound && compName == "kubectl" && compCounter == 1) {
+		return currentComponent
 	}
 	return compName
+}
+
+// MinorVersion returns true if version is minor version 1.1 or 2.2 and etc
+func MinorVersion(version string) bool {
+	return strings.Count(version, ".") == 1
 }

@@ -88,14 +88,11 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 					case len(strings.TrimSpace(v.LessThan)) > 0:
 						introduce, lastAffected = utils.ExtractVersions(v.LessThan, v.Version, false)
 						fixed = v.LessThan
+					case utils.MinorVersion(v.Version):
+						requireMerge = true
+						introduce = v.Version
 					default:
-						// incase all major version is vulnerable
-						if strings.Count(v.Version, ".") == 1 {
-							requireMerge = true
-							introduce = v.Version
-						} else {
-							introduce, lastAffected = utils.ExtractRangeVersions(v.Version)
-						}
+						introduce, lastAffected = utils.ExtractRangeVersions(v.Version)
 					}
 					ver := &Version{Introduced: introduce, Fixed: fixed, LastAffected: lastAffected}
 					versions = append(versions, ver)
@@ -111,14 +108,8 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 		}
 		vector, severity, score := getMetrics(cve)
 		description := getDescription(cve.Containers.Cna.Descriptions)
-		if strings.ToLower(component) == "kubernetes" {
-			product := utils.GetComponentFromDescription(description)
-			if len(product) > 0 {
-				component = product
-			}
-		}
 		return &Vulnerability{
-			Component:        component,
+			Component:        utils.GetComponentFromDescription(description, component),
 			Description:      description,
 			AffectedVersions: vulnerableVersions,
 			CvssV3: Cvssv3{
@@ -138,38 +129,44 @@ func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
 	if (v.LessThanOrEqual == "unspecified" || v.LessThan == "unspecified") && len(v.Version) > 0 {
 		return v, false
 	}
-	if v.LessThanOrEqual == "<=" {
-		v.LessThanOrEqual = v.Version
-	}
-	if strings.HasPrefix(v.Version, "< ") {
-		v.LessThan = strings.TrimPrefix(v.Version, "< ")
-	}
-	if strings.HasPrefix(v.Version, "<= ") {
-		v.LessThanOrEqual = strings.TrimPrefix(v.Version, "<= ")
-	}
-	if strings.HasPrefix(strings.TrimSpace(v.Version), "prior to") {
-		priorToVersion := strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
-		if strings.Count(priorToVersion, ".") == 1 {
-			priorToVersion = priorToVersion + ".0"
-		}
-		v.LessThan = priorToVersion
-		v.Version = priorToVersion
-	}
-	if strings.HasPrefix(strings.TrimSpace(v.LessThan), "prior to") {
-		v.LessThan = strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
-	}
-	if strings.HasSuffix(strings.TrimSpace(v.LessThan), "*") {
-		v.Version = strings.TrimSpace(strings.ReplaceAll(v.LessThan, "*", ""))
-		v.LessThan = ""
-	}
-	if strings.HasSuffix(strings.TrimSpace(v.Version), ".x") {
-		li := strings.LastIndex(v.Version, ".")
-		if li != -1 {
-			v.Version = strings.TrimSpace(fmt.Sprintf("%s%s", v.Version[:li], ""))
+	if len(v.LessThanOrEqual) > 0 {
+		if v.LessThanOrEqual == "<=" {
+			v.LessThanOrEqual = v.Version
+		} else if strings.Contains(v.LessThanOrEqual, "<=") {
+			v.LessThanOrEqual = strings.TrimSpace(strings.ReplaceAll(strings.TrimSpace(v.LessThanOrEqual), "<=", ""))
 		}
 	}
-	if strings.Contains(v.LessThanOrEqual, "<=") {
-		v.LessThanOrEqual = strings.TrimSpace(strings.ReplaceAll(strings.TrimSpace(v.LessThanOrEqual), "<=", ""))
+	if len(v.LessThan) > 0 {
+		if strings.HasPrefix(strings.TrimSpace(v.LessThan), "prior to") {
+			v.LessThan = strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
+		} else if strings.HasSuffix(strings.TrimSpace(v.LessThan), "*") {
+			v.Version = strings.TrimSpace(strings.ReplaceAll(v.LessThan, "*", ""))
+			v.LessThan = ""
+		}
+	}
+
+	if len(v.Version) > 0 {
+		if strings.HasPrefix(v.Version, "< ") {
+			v.LessThan = strings.TrimPrefix(v.Version, "< ")
+		} else if strings.HasPrefix(v.Version, "<= ") {
+			v.LessThanOrEqual = strings.TrimPrefix(v.Version, "<= ")
+		} else if strings.HasPrefix(strings.TrimSpace(v.Version), "prior to") {
+			priorToVersion := strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
+			if utils.MinorVersion(priorToVersion) {
+				priorToVersion = priorToVersion + ".0"
+				v.Version = priorToVersion
+			}
+			v.LessThan = priorToVersion
+		} else if strings.HasSuffix(strings.TrimSpace(v.Version), ".x") {
+			li := strings.LastIndex(v.Version, ".")
+			if li != -1 {
+				v.Version = strings.TrimSpace(fmt.Sprintf("%s%s", v.Version[:li], ""))
+			}
+		}
+	}
+
+	if strings.HasSuffix(v.LessThan, ".0") {
+		v.Version = "0"
 	}
 
 	return &MitreVersion{
@@ -211,45 +208,44 @@ func (s byVersion) Less(i, j int) bool {
 }
 
 func mergeVersionRange(affectedVersions []*Version) ([]*Version, error) {
-	// this special handling is made to handle to case of conceutive vulnable major versions example:
+	// this special handling is made to handle to case of conceutive vulnable minor versions example:
 	// vulnerable 1.3, 1.4, 1.5, 1.6 and prior to versions 1.7.14, 1.8.9 will be form as follow:
-	// Introduced: 1.3.0  LastAffected: 1.7.0
-	// Introduced: 1.7.0  Fixed: 1.7.14
+	// Introduced: 1.3.0  Fixed: 1.7.14
 	// Introduced: 1.8.0  Fixed: 1.8.9
 
 	newAffectedVesion := make([]*Version, 0)
 	sort.Sort(byVersion(affectedVersions))
-	var startVersion, lastVersion string
+	minorVersions := make([]*Version, 0)
 	for _, av := range affectedVersions {
-		if len(startVersion) == 0 && strings.Count(av.Introduced, ".") == 1 {
-			startVersion = av.Introduced
+		if utils.MinorVersion(av.Introduced) {
+			minorVersions = append(minorVersions, av)
+			continue
+		} else if strings.Count(av.Introduced, ".") > 1 && len(minorVersions) > 0 {
+			newAffectedVesion = append(newAffectedVesion, &Version{
+				Introduced:   fmt.Sprintf("%s.0", minorVersions[0].Introduced),
+				LastAffected: av.LastAffected,
+				Fixed:        av.Fixed,
+			})
+			minorVersions = minorVersions[:0]
 			continue
 		}
-		if strings.Count(av.Introduced, ".") > 1 && len(lastVersion) == 0 && len(startVersion) > 0 {
-			lastVersion = av.Introduced
-			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: startVersion + ".0", LastAffected: lastVersion})
-			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: av.Introduced, LastAffected: av.LastAffected, Fixed: av.Fixed})
-			startVersion = ""
-			continue
-		}
-		if len(lastVersion) > 0 || len(startVersion) == 0 {
+		if len(minorVersions) == 0 {
 			newAffectedVesion = append(newAffectedVesion, av)
-			lastVersion = ""
 		}
 	}
 
-	// this special handling is made to handle to case of conceutive vulnable major versions where no fixed version is provided example:
+	// this special handling is made to handle to case of conceutive vulnable minor versions where no fixed version is provided example:
 	// vulnerable 1.3, 1.4, 1.5, 1.6  will be form as follow:
 	// Introduced: 1.3.0  Fixed: 1.7.0
-	if lastVersion == "" && strings.Count(startVersion, ".") == 1 {
-		ver, err := version.NewSemver(affectedVersions[len(affectedVersions)-1].Introduced + ".0")
+	if len(minorVersions) > 0 {
+		ver, err := version.NewSemver(fmt.Sprintf("%s.0", minorVersions[len(minorVersions)-1].Introduced))
 		if err != nil {
 			return nil, err
 		}
 		versionParts := ver.Segments()
 		if len(versionParts) == 3 {
 			fixed := fmt.Sprintf("%d.%d.%d", versionParts[0], versionParts[1]+1, versionParts[2])
-			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: startVersion + ".0", Fixed: fixed})
+			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: fmt.Sprintf("%s.0", minorVersions[0].Introduced), Fixed: fixed})
 		}
 	}
 	return newAffectedVesion, nil

@@ -60,17 +60,13 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 				len(vulnerability.CvssV3.Vector) == 0 {
 				continue
 			}
-
-			component := vulnerability.Component
-			if component == "kubernetes" {
-				component = utils.GetComponentFromDescription(i["content_text"].(string))
-			}
+			component := utils.GetComponentFromDescription(i["content_text"].(string), vulnerability.Component)
 
 			fullVulnerabilities = append(fullVulnerabilities, &Vulnerability{
 				ID:          cveID,
 				CreatedAt:   i["date_published"].(string),
 				Component:   getComponentName(component, vulnerability),
-				Affected:    GetAffectedEvents(vulnerability),
+				Affected:    getAffectedEvents(vulnerability),
 				Summary:     i["summary"].(string),
 				Description: vulnerability.Description,
 				Urls:        []string{i["url"].(string), externalURL},
@@ -79,14 +75,14 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 			})
 		}
 	}
-	err = ValidateCveData(fullVulnerabilities)
+	err = ValidateCvesData(fullVulnerabilities)
 	if err != nil {
 		return nil, err
 	}
 	return &K8sVulnDB{fullVulnerabilities}, nil
 }
 
-func GetAffectedEvents(v *Vulnerability) []*Affected {
+func getAffectedEvents(v *Vulnerability) []*Affected {
 	affected := make([]*Affected, 0)
 	for _, av := range v.AffectedVersions {
 		if len(av.Introduced) == 0 {
@@ -128,7 +124,7 @@ func getComponentName(k8sComponent string, mitreCve *Vulnerability) string {
 	return strings.ToLower(fmt.Sprintf("%s/%s", utils.UpstreamOrgByName(k8sComponent), utils.UpstreamRepoByName(k8sComponent)))
 }
 
-func ValidateCveData(cves []*Vulnerability) error {
+func ValidateCvesData(cves []*Vulnerability) error {
 	var result error
 	for _, cve := range cves {
 		if len(cve.ID) == 0 {
