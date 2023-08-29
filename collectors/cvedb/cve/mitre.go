@@ -224,7 +224,7 @@ func mergeVersionRange(affectedVersions []*Version) ([]*Version, error) {
 			firstMajorVersion = av.Introduced
 			continue
 		}
-		if strings.Count(av.Introduced, ".") > 1 && len(lastMajorVersion) == 0 && len(firstMajorVersion) > 0 {
+		if strings.Count(av.Introduced, ".") > 1 && len(firstMajorVersion) > 0 {
 			lastMajorVersion = av.Introduced
 			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: fmt.Sprintf("%s.0", firstMajorVersion), LastAffected: lastMajorVersion})
 			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: av.Introduced, LastAffected: av.LastAffected, Fixed: av.Fixed})

@@ -75,7 +75,7 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 			})
 		}
 	}
-	err = ValidateCveData(fullVulnerabilities)
+	err = ValidateCvesData(fullVulnerabilities)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func getComponentName(k8sComponent string, mitreCve *Vulnerability) string {
 	return strings.ToLower(fmt.Sprintf("%s/%s", utils.UpstreamOrgByName(k8sComponent), utils.UpstreamRepoByName(k8sComponent)))
 }
 
-func ValidateCveData(cves []*Vulnerability) error {
+func ValidateCvesData(cves []*Vulnerability) error {
 	var result error
 	for _, cve := range cves {
 		if len(cve.ID) == 0 {
