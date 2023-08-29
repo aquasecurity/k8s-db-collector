@@ -218,37 +218,38 @@ func mergeVersionRange(affectedVersions []*Version) ([]*Version, error) {
 
 	newAffectedVesion := make([]*Version, 0)
 	sort.Sort(byVersion(affectedVersions))
-	var firstMinorVersion, lastMinorVersion string
+	minorVersions := make([]*Version, 0)
+	patchVersions := make([]*Version, 0)
 	for _, av := range affectedVersions {
-		if len(firstMinorVersion) == 0 && utils.MinorVersion(av.Introduced) {
-			firstMinorVersion = av.Introduced
+		if utils.MinorVersion(av.Introduced) {
+			minorVersions = append(minorVersions, av)
 			continue
 		}
-		if strings.Count(av.Introduced, ".") > 1 && len(firstMinorVersion) > 0 {
-			lastMinorVersion = av.Introduced
-			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: fmt.Sprintf("%s.0", firstMinorVersion), LastAffected: lastMinorVersion})
+		if strings.Count(av.Introduced, ".") > 1 && len(minorVersions) > 0 {
+			patchVersions = append(patchVersions, av)
+			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: fmt.Sprintf("%s.0", minorVersions[0].Introduced), LastAffected: av.Introduced})
 			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: av.Introduced, LastAffected: av.LastAffected, Fixed: av.Fixed})
-			firstMinorVersion = ""
+			minorVersions = minorVersions[:0]
 			continue
 		}
-		if len(lastMinorVersion) > 0 || len(firstMinorVersion) == 0 {
+		if len(patchVersions) > 0 || len(minorVersions) == 0 {
 			newAffectedVesion = append(newAffectedVesion, av)
-			lastMinorVersion = ""
+			patchVersions = patchVersions[:0]
 		}
 	}
 
 	// this special handling is made to handle to case of conceutive vulnable minor versions where no fixed version is provided example:
 	// vulnerable 1.3, 1.4, 1.5, 1.6  will be form as follow:
 	// Introduced: 1.3.0  Fixed: 1.7.0
-	if lastMinorVersion == "" && utils.MinorVersion(firstMinorVersion) {
-		ver, err := version.NewSemver(affectedVersions[len(affectedVersions)-1].Introduced + ".0")
+	if len(minorVersions) > 0 {
+		ver, err := version.NewSemver(minorVersions[len(minorVersions)-1].Introduced + ".0")
 		if err != nil {
 			return nil, err
 		}
 		versionParts := ver.Segments()
 		if len(versionParts) == 3 {
 			fixed := fmt.Sprintf("%d.%d.%d", versionParts[0], versionParts[1]+1, versionParts[2])
-			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: fmt.Sprintf("%s.0", firstMinorVersion), Fixed: fixed})
+			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: fmt.Sprintf("%s.0", minorVersions[0].Introduced), Fixed: fixed})
 		}
 	}
 	return newAffectedVesion, nil
