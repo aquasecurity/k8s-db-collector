@@ -146,12 +146,16 @@ func ValidateCvesData(cves []*Vulnerability) error {
 			result = multierror.Append(result, fmt.Errorf("\nAffected Version is missing on cve #%s", cve.ID))
 		}
 		if len(cve.Affected) > 0 {
-			for _, v := range cve.AffectedVersions {
-				if len(v.Introduced) == 0 {
-					result = multierror.Append(result, fmt.Errorf("\nAffectedVersion From %s is invalid on cve #%s", v.Introduced, cve.ID))
-				}
-				if len(v.Fixed) == 0 && len(v.LastAffected) == 0 {
-					result = multierror.Append(result, fmt.Errorf("\nAffectedVersion From %s is invalid on cve #%s", v.LastAffected, cve.ID))
+			for _, v := range cve.Affected {
+				for _, r := range v.Ranges {
+					for i := 1; i < len(r.Events); i++ {
+						if len(r.Events[i-1].Introduced) == 0 {
+							result = multierror.Append(result, fmt.Errorf("\nAffectedVersion Introduced is missing from cve #%s", cve.ID))
+						}
+						if len(r.Events[i].Fixed) == 0 && len(r.Events[i].LastAffected) == 0 {
+							result = multierror.Append(result, fmt.Errorf("\nAffectedVersion Fixed and LastAffected are missing from cve #%s", cve.ID))
+						}
+					}
 				}
 			}
 		}
