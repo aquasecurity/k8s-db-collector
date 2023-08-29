@@ -53,7 +53,7 @@ func ExtractVersions(lastAffected, introduce string, lessThanOrEqual bool) (stri
 	if introduce == "0" {
 		return introduce, lastAffected
 	}
-	if strings.Count(introduce, ".") == 1 {
+	if MajorVersion(introduce) {
 		return introduce + ".0", lastAffected
 	}
 
@@ -142,4 +142,8 @@ func GetComponentFromDescription(descriptions string) string {
 		compName = ""
 	}
 	return compName
+}
+
+func MajorVersion(version string) bool {
+	return strings.Count(version, ".") == 1
 }

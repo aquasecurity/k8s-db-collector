@@ -88,7 +88,7 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 					case len(strings.TrimSpace(v.LessThan)) > 0:
 						introduce, lastAffected = utils.ExtractVersions(v.LessThan, v.Version, false)
 						fixed = v.LessThan
-					case strings.Count(v.Version, ".") == 1:
+					case utils.MajorVersion(v.Version):
 						requireMerge = true
 						introduce = v.Version
 					default:
@@ -158,7 +158,7 @@ func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
 			v.LessThanOrEqual = strings.TrimPrefix(v.Version, "<= ")
 		} else if strings.HasPrefix(strings.TrimSpace(v.Version), "prior to") {
 			priorToVersion := strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
-			if strings.Count(priorToVersion, ".") == 1 {
+			if utils.MajorVersion(priorToVersion) {
 				priorToVersion = priorToVersion + ".0"
 				v.Version = priorToVersion
 			}
@@ -224,7 +224,7 @@ func mergeVersionRange(affectedVersions []*Version) ([]*Version, error) {
 	sort.Sort(byVersion(affectedVersions))
 	var startVersion, lastVersion string
 	for _, av := range affectedVersions {
-		if len(startVersion) == 0 && strings.Count(av.Introduced, ".") == 1 {
+		if len(startVersion) == 0 && utils.MajorVersion(av.Introduced) {
 			startVersion = av.Introduced
 			continue
 		}
@@ -244,7 +244,7 @@ func mergeVersionRange(affectedVersions []*Version) ([]*Version, error) {
 	// this special handling is made to handle to case of conceutive vulnable major versions where no fixed version is provided example:
 	// vulnerable 1.3, 1.4, 1.5, 1.6  will be form as follow:
 	// Introduced: 1.3.0  Fixed: 1.7.0
-	if lastVersion == "" && strings.Count(startVersion, ".") == 1 {
+	if lastVersion == "" && utils.MajorVersion(startVersion) {
 		ver, err := version.NewSemver(affectedVersions[len(affectedVersions)-1].Introduced + ".0")
 		if err != nil {
 			return nil, err
