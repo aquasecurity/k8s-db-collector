@@ -219,7 +219,6 @@ func mergeVersionRange(affectedVersions []*Version) ([]*Version, error) {
 	for _, av := range affectedVersions {
 		if utils.MinorVersion(av.Introduced) {
 			minorVersions = append(minorVersions, av)
-			continue
 		} else if strings.Count(av.Introduced, ".") > 1 && len(minorVersions) > 0 {
 			newAffectedVesion = append(newAffectedVesion, &Version{
 				Introduced:   fmt.Sprintf("%s.0", minorVersions[0].Introduced),
