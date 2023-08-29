@@ -219,22 +219,21 @@ func mergeVersionRange(affectedVersions []*Version) ([]*Version, error) {
 	newAffectedVesion := make([]*Version, 0)
 	sort.Sort(byVersion(affectedVersions))
 	minorVersions := make([]*Version, 0)
-	patchVersions := make([]*Version, 0)
 	for _, av := range affectedVersions {
 		if utils.MinorVersion(av.Introduced) {
 			minorVersions = append(minorVersions, av)
 			continue
-		}
-		if strings.Count(av.Introduced, ".") > 1 && len(minorVersions) > 0 {
-			patchVersions = append(patchVersions, av)
-			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: fmt.Sprintf("%s.0", minorVersions[0].Introduced), LastAffected: av.Introduced})
-			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: av.Introduced, LastAffected: av.LastAffected, Fixed: av.Fixed})
+		} else if strings.Count(av.Introduced, ".") > 1 && len(minorVersions) > 0 {
+			newAffectedVesion = append(newAffectedVesion, &Version{
+				Introduced:   fmt.Sprintf("%s.0", minorVersions[0].Introduced),
+				LastAffected: av.LastAffected,
+				Fixed:        av.Fixed,
+			})
 			minorVersions = minorVersions[:0]
 			continue
 		}
-		if len(patchVersions) > 0 || len(minorVersions) == 0 {
+		if len(minorVersions) == 0 {
 			newAffectedVesion = append(newAffectedVesion, av)
-			patchVersions = patchVersions[:0]
 		}
 	}
 
@@ -242,7 +241,7 @@ func mergeVersionRange(affectedVersions []*Version) ([]*Version, error) {
 	// vulnerable 1.3, 1.4, 1.5, 1.6  will be form as follow:
 	// Introduced: 1.3.0  Fixed: 1.7.0
 	if len(minorVersions) > 0 {
-		ver, err := version.NewSemver(minorVersions[len(minorVersions)-1].Introduced + ".0")
+		ver, err := version.NewSemver(fmt.Sprintf("%s.0", minorVersions[len(minorVersions)-1].Introduced))
 		if err != nil {
 			return nil, err
 		}

@@ -43,8 +43,7 @@ func TestMergedVersion(t *testing.T) {
 			{Introduced: "1.3"},
 			{Introduced: "1.4.1", LastAffected: "1.4.6"},
 		}, WantAffectedVersions: []*Version{
-			{Introduced: "1.2.0", LastAffected: "1.4.1"},
-			{Introduced: "1.4.1", LastAffected: "1.4.6"}},
+			{Introduced: "1.2.0", LastAffected: "1.4.6"}},
 		},
 		{Name: "merge mixed version", affectedVersions: []*Version{
 			{Introduced: "1.3"},
@@ -54,8 +53,7 @@ func TestMergedVersion(t *testing.T) {
 			{Introduced: "1.7.0", Fixed: "1.7.14"},
 			{Introduced: "1.8.0", Fixed: "1.8.9"},
 		}, WantAffectedVersions: []*Version{
-			{Introduced: "1.3.0", LastAffected: "1.7.0"},
-			{Introduced: "1.7.0", Fixed: "1.7.14"},
+			{Introduced: "1.3.0", Fixed: "1.7.14"},
 			{Introduced: "1.8.0", Fixed: "1.8.9"}},
 		},
 		{Name: "merge all minor version", affectedVersions: []*Version{
