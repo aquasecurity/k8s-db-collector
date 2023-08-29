@@ -26,7 +26,6 @@ type Version struct {
 	Introduced   string `json:"introduced,omitempty"`
 	Fixed        string `json:"fixed,omitempty"`
 	LastAffected string `json:"last_affected,omitempty"`
-	Limit        string `json:"limit,omitempty"`
 	FixedIndex   int    `json:"-"`
 }
 

@@ -53,7 +53,7 @@ func ExtractVersions(lastAffected, introduce string, lessThanOrEqual bool) (stri
 	if introduce == "0" {
 		return introduce, lastAffected
 	}
-	if MajorVersion(introduce) {
+	if MinorVersion(introduce) {
 		return introduce + ".0", lastAffected
 	}
 
@@ -147,7 +147,7 @@ func GetComponentFromDescription(descriptions string, currentComponent string) s
 	return compName
 }
 
-// MajorVersion returns true if version is major version 1.1 or 2.2 and etc
-func MajorVersion(version string) bool {
+// MinorVersion returns true if version is major version 1.1 or 2.2 and etc
+func MinorVersion(version string) bool {
 	return strings.Count(version, ".") == 1
 }

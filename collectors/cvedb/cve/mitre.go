@@ -88,7 +88,7 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 					case len(strings.TrimSpace(v.LessThan)) > 0:
 						introduce, lastAffected = utils.ExtractVersions(v.LessThan, v.Version, false)
 						fixed = v.LessThan
-					case utils.MajorVersion(v.Version):
+					case utils.MinorVersion(v.Version):
 						requireMerge = true
 						introduce = v.Version
 					default:
@@ -154,7 +154,7 @@ func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
 			v.LessThanOrEqual = strings.TrimPrefix(v.Version, "<= ")
 		} else if strings.HasPrefix(strings.TrimSpace(v.Version), "prior to") {
 			priorToVersion := strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
-			if utils.MajorVersion(priorToVersion) {
+			if utils.MinorVersion(priorToVersion) {
 				priorToVersion = priorToVersion + ".0"
 				v.Version = priorToVersion
 			}
@@ -210,7 +210,7 @@ func (s byVersion) Less(i, j int) bool {
 }
 
 func mergeVersionRange(affectedVersions []*Version) ([]*Version, error) {
-	// this special handling is made to handle to case of conceutive vulnable major versions example:
+	// this special handling is made to handle to case of conceutive vulnable minor versions example:
 	// vulnerable 1.3, 1.4, 1.5, 1.6 and prior to versions 1.7.14, 1.8.9 will be form as follow:
 	// Introduced: 1.3.0  LastAffected: 1.7.0
 	// Introduced: 1.7.0  Fixed: 1.7.14
@@ -218,29 +218,29 @@ func mergeVersionRange(affectedVersions []*Version) ([]*Version, error) {
 
 	newAffectedVesion := make([]*Version, 0)
 	sort.Sort(byVersion(affectedVersions))
-	var firstMajorVersion, lastMajorVersion string
+	var firstMinorVersion, lastMinorVersion string
 	for _, av := range affectedVersions {
-		if len(firstMajorVersion) == 0 && utils.MajorVersion(av.Introduced) {
-			firstMajorVersion = av.Introduced
+		if len(firstMinorVersion) == 0 && utils.MinorVersion(av.Introduced) {
+			firstMinorVersion = av.Introduced
 			continue
 		}
-		if strings.Count(av.Introduced, ".") > 1 && len(firstMajorVersion) > 0 {
-			lastMajorVersion = av.Introduced
-			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: fmt.Sprintf("%s.0", firstMajorVersion), LastAffected: lastMajorVersion})
+		if strings.Count(av.Introduced, ".") > 1 && len(firstMinorVersion) > 0 {
+			lastMinorVersion = av.Introduced
+			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: fmt.Sprintf("%s.0", firstMinorVersion), LastAffected: lastMinorVersion})
 			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: av.Introduced, LastAffected: av.LastAffected, Fixed: av.Fixed})
-			firstMajorVersion = ""
+			firstMinorVersion = ""
 			continue
 		}
-		if len(lastMajorVersion) > 0 || len(firstMajorVersion) == 0 {
+		if len(lastMinorVersion) > 0 || len(firstMinorVersion) == 0 {
 			newAffectedVesion = append(newAffectedVesion, av)
-			lastMajorVersion = ""
+			lastMinorVersion = ""
 		}
 	}
 
-	// this special handling is made to handle to case of conceutive vulnable major versions where no fixed version is provided example:
+	// this special handling is made to handle to case of conceutive vulnable minor versions where no fixed version is provided example:
 	// vulnerable 1.3, 1.4, 1.5, 1.6  will be form as follow:
 	// Introduced: 1.3.0  Fixed: 1.7.0
-	if lastMajorVersion == "" && utils.MajorVersion(firstMajorVersion) {
+	if lastMinorVersion == "" && utils.MinorVersion(firstMinorVersion) {
 		ver, err := version.NewSemver(affectedVersions[len(affectedVersions)-1].Introduced + ".0")
 		if err != nil {
 			return nil, err
@@ -248,7 +248,7 @@ func mergeVersionRange(affectedVersions []*Version) ([]*Version, error) {
 		versionParts := ver.Segments()
 		if len(versionParts) == 3 {
 			fixed := fmt.Sprintf("%d.%d.%d", versionParts[0], versionParts[1]+1, versionParts[2])
-			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: fmt.Sprintf("%s.0", firstMajorVersion), Fixed: fixed})
+			newAffectedVesion = append(newAffectedVesion, &Version{Introduced: fmt.Sprintf("%s.0", firstMinorVersion), Fixed: fixed})
 		}
 	}
 	return newAffectedVesion, nil
