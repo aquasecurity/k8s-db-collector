@@ -66,7 +66,7 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 				ID:          cveID,
 				CreatedAt:   i["date_published"].(string),
 				Component:   getComponentName(component, vulnerability),
-				Affected:    GetAffectedEvents(vulnerability),
+				Affected:    getAffectedEvents(vulnerability),
 				Summary:     i["summary"].(string),
 				Description: vulnerability.Description,
 				Urls:        []string{i["url"].(string), externalURL},
@@ -82,7 +82,7 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 	return &K8sVulnDB{fullVulnerabilities}, nil
 }
 
-func GetAffectedEvents(v *Vulnerability) []*Affected {
+func getAffectedEvents(v *Vulnerability) []*Affected {
 	affected := make([]*Affected, 0)
 	for _, av := range v.AffectedVersions {
 		if len(av.Introduced) == 0 {

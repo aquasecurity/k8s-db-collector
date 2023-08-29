@@ -108,10 +108,8 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 		}
 		vector, severity, score := getMetrics(cve)
 		description := getDescription(cve.Containers.Cna.Descriptions)
-		component = utils.GetComponentFromDescription(description, component)
-
 		return &Vulnerability{
-			Component:        component,
+			Component:        utils.GetComponentFromDescription(description, component),
 			Description:      description,
 			AffectedVersions: vulnerableVersions,
 			CvssV3: Cvssv3{
