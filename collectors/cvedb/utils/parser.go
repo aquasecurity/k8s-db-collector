@@ -147,7 +147,7 @@ func GetComponentFromDescription(descriptions string, currentComponent string) s
 	return compName
 }
 
-// MinorVersion returns true if version is major version 1.1 or 2.2 and etc
+// MinorVersion returns true if version is minor version 1.1 or 2.2 and etc
 func MinorVersion(version string) bool {
 	return strings.Count(version, ".") == 1
 }
