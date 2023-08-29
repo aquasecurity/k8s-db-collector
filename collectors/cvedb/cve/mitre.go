@@ -108,12 +108,8 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 		}
 		vector, severity, score := getMetrics(cve)
 		description := getDescription(cve.Containers.Cna.Descriptions)
-		if strings.ToLower(component) == "kubernetes" {
-			product := utils.GetComponentFromDescription(description)
-			if len(product) > 0 {
-				component = product
-			}
-		}
+		component = utils.GetComponentFromDescription(description, component)
+
 		return &Vulnerability{
 			Component:        component,
 			Description:      description,

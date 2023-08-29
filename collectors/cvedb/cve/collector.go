@@ -60,11 +60,7 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 				len(vulnerability.CvssV3.Vector) == 0 {
 				continue
 			}
-
-			component := vulnerability.Component
-			if component == "kubernetes" {
-				component = utils.GetComponentFromDescription(i["content_text"].(string))
-			}
+			component := utils.GetComponentFromDescription(i["content_text"].(string), vulnerability.Component)
 
 			fullVulnerabilities = append(fullVulnerabilities, &Vulnerability{
 				ID:          cveID,

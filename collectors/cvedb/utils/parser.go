@@ -116,7 +116,10 @@ func UpstreamRepoByName(component string) string {
 	return component
 }
 
-func GetComponentFromDescription(descriptions string) string {
+func GetComponentFromDescription(descriptions string, currentComponent string) string {
+	if strings.ToLower(currentComponent) != "kubernetes" {
+		return currentComponent
+	}
 	var compName string
 	var compCounter int
 	var kubeCtlVersionFound bool
@@ -137,9 +140,9 @@ func GetComponentFromDescription(descriptions string) string {
 			}
 		}
 	}
-	// in case found kubectl in env description and only one component found
-	if kubeCtlVersionFound && compName == "kubectl" && compCounter == 1 {
-		compName = ""
+	// in case found kubectl in env description and only one component found or no component found then fallback to k8s.io/kubernetes component
+	if len(compName) == 0 || (kubeCtlVersionFound && compName == "kubectl" && compCounter == 1) {
+		return currentComponent
 	}
 	return compName
 }
