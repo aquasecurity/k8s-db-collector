@@ -49,15 +49,7 @@ func CvssVectorToScore(vector string) (string, float64) {
 	return bm.Severity().String(), bm.Score()
 }
 
-func ExtractVersions(lessOps, introduce string, lessThanOrEqual bool) (string, string) {
-	var lastAffected string
-	if lessThanOrEqual {
-		lastAffected = strings.TrimSpace(lessOps)
-	} else {
-		if strings.HasSuffix(lessOps, ".0") {
-			introduce = "0"
-		}
-	}
+func ExtractVersions(lastAffected, introduce string, lessThanOrEqual bool) (string, string) {
 	if introduce == "0" {
 		return introduce, lastAffected
 	}
@@ -65,8 +57,8 @@ func ExtractVersions(lessOps, introduce string, lessThanOrEqual bool) (string, s
 		return introduce + ".0", lastAffected
 	}
 
-	if lIndex := strings.LastIndex(lessOps, "."); lIndex != -1 {
-		return strings.TrimSpace(fmt.Sprintf("%s.%s", lessOps[:lIndex], "0")), lastAffected
+	if lIndex := strings.LastIndex(lastAffected, "."); lIndex != -1 {
+		return strings.TrimSpace(fmt.Sprintf("%s.%s", lastAffected[:lIndex], "0")), lastAffected
 	}
 	return introduce, lastAffected
 }

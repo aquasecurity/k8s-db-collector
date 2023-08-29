@@ -88,14 +88,11 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 					case len(strings.TrimSpace(v.LessThan)) > 0:
 						introduce, lastAffected = utils.ExtractVersions(v.LessThan, v.Version, false)
 						fixed = v.LessThan
+					case strings.Count(v.Version, ".") == 1:
+						requireMerge = true
+						introduce = v.Version
 					default:
-						// incase all major version is vulnerable
-						if strings.Count(v.Version, ".") == 1 {
-							requireMerge = true
-							introduce = v.Version
-						} else {
-							introduce, lastAffected = utils.ExtractRangeVersions(v.Version)
-						}
+						introduce, lastAffected = utils.ExtractRangeVersions(v.Version)
 					}
 					ver := &Version{Introduced: introduce, Fixed: fixed, LastAffected: lastAffected}
 					versions = append(versions, ver)
@@ -138,38 +135,44 @@ func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
 	if (v.LessThanOrEqual == "unspecified" || v.LessThan == "unspecified") && len(v.Version) > 0 {
 		return v, false
 	}
-	if v.LessThanOrEqual == "<=" {
-		v.LessThanOrEqual = v.Version
-	}
-	if strings.HasPrefix(v.Version, "< ") {
-		v.LessThan = strings.TrimPrefix(v.Version, "< ")
-	}
-	if strings.HasPrefix(v.Version, "<= ") {
-		v.LessThanOrEqual = strings.TrimPrefix(v.Version, "<= ")
-	}
-	if strings.HasPrefix(strings.TrimSpace(v.Version), "prior to") {
-		priorToVersion := strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
-		if strings.Count(priorToVersion, ".") == 1 {
-			priorToVersion = priorToVersion + ".0"
-		}
-		v.LessThan = priorToVersion
-		v.Version = priorToVersion
-	}
-	if strings.HasPrefix(strings.TrimSpace(v.LessThan), "prior to") {
-		v.LessThan = strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
-	}
-	if strings.HasSuffix(strings.TrimSpace(v.LessThan), "*") {
-		v.Version = strings.TrimSpace(strings.ReplaceAll(v.LessThan, "*", ""))
-		v.LessThan = ""
-	}
-	if strings.HasSuffix(strings.TrimSpace(v.Version), ".x") {
-		li := strings.LastIndex(v.Version, ".")
-		if li != -1 {
-			v.Version = strings.TrimSpace(fmt.Sprintf("%s%s", v.Version[:li], ""))
+	if len(v.LessThanOrEqual) > 0 {
+		if v.LessThanOrEqual == "<=" {
+			v.LessThanOrEqual = v.Version
+		} else if strings.Contains(v.LessThanOrEqual, "<=") {
+			v.LessThanOrEqual = strings.TrimSpace(strings.ReplaceAll(strings.TrimSpace(v.LessThanOrEqual), "<=", ""))
 		}
 	}
-	if strings.Contains(v.LessThanOrEqual, "<=") {
-		v.LessThanOrEqual = strings.TrimSpace(strings.ReplaceAll(strings.TrimSpace(v.LessThanOrEqual), "<=", ""))
+	if len(v.LessThan) > 0 {
+		if strings.HasPrefix(strings.TrimSpace(v.LessThan), "prior to") {
+			v.LessThan = strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
+		} else if strings.HasSuffix(strings.TrimSpace(v.LessThan), "*") {
+			v.Version = strings.TrimSpace(strings.ReplaceAll(v.LessThan, "*", ""))
+			v.LessThan = ""
+		}
+	}
+
+	if len(v.Version) > 0 {
+		if strings.HasPrefix(v.Version, "< ") {
+			v.LessThan = strings.TrimPrefix(v.Version, "< ")
+		} else if strings.HasPrefix(v.Version, "<= ") {
+			v.LessThanOrEqual = strings.TrimPrefix(v.Version, "<= ")
+		} else if strings.HasPrefix(strings.TrimSpace(v.Version), "prior to") {
+			priorToVersion := strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
+			if strings.Count(priorToVersion, ".") == 1 {
+				priorToVersion = priorToVersion + ".0"
+				v.Version = priorToVersion
+			}
+			v.LessThan = priorToVersion
+		} else if strings.HasSuffix(strings.TrimSpace(v.Version), ".x") {
+			li := strings.LastIndex(v.Version, ".")
+			if li != -1 {
+				v.Version = strings.TrimSpace(fmt.Sprintf("%s%s", v.Version[:li], ""))
+			}
+		}
+	}
+
+	if strings.HasSuffix(v.LessThan, ".0") {
+		v.Version = "0"
 	}
 
 	return &MitreVersion{

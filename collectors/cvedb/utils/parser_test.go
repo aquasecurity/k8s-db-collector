@@ -15,8 +15,8 @@ func Test_ExtractVersions(t *testing.T) {
 		wantIntroduce    string
 		wantLastAffected string
 	}{
-		{name: "range less with major", version: "1.2", less: "1.2.5", vType: false, wantIntroduce: "1.2.0", wantLastAffected: ""},
-		{name: "range less", version: "", less: "1.2.5", vType: false, wantIntroduce: "1.2.0", wantLastAffected: ""},
+		{name: "range less with major", version: "1.2", less: "1.2.5", vType: false, wantIntroduce: "1.2.0", wantLastAffected: "1.2.5"},
+		{name: "range less", version: "", less: "1.2.5", vType: false, wantIntroduce: "1.2.0", wantLastAffected: "1.2.5"},
 		{name: "range lessThen", version: "", less: "1.2.5", vType: true, wantIntroduce: "1.2.0", wantLastAffected: "1.2.5"},
 	}
 	for _, tt := range tests {
