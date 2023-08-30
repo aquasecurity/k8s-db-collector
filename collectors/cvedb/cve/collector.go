@@ -24,8 +24,7 @@ func Collect() (*K8sVulnDB, error) {
 		return nil, err
 	}
 	var db K8sCVE
-	err = json.NewDecoder(response.Body).Decode(&db)
-	if err != nil {
+	if err = json.NewDecoder(response.Body).Decode(&db); err != nil {
 		return nil, err
 	}
 	return ParseVulnDBData(db)
