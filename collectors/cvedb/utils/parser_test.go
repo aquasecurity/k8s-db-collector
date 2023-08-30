@@ -20,7 +20,7 @@ func Test_ExtractVersions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotIntoduce, gotLastAffected := ExtractVersions(tt.less, tt.version)
+			gotIntoduce, gotLastAffected := UpdateVersions(tt.less, tt.version)
 			assert.Equal(t, gotIntoduce, tt.wantIntroduce)
 			assert.Equal(t, gotLastAffected, tt.wantLastAffected)
 		})

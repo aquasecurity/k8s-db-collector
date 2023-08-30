@@ -84,9 +84,9 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 					}
 					switch {
 					case len(strings.TrimSpace(v.LessThanOrEqual)) > 0:
-						introduce, lastAffected = utils.ExtractVersions(v.LessThanOrEqual, v.Version)
+						introduce, lastAffected = utils.UpdateVersions(v.LessThanOrEqual, v.Version)
 					case len(strings.TrimSpace(v.LessThan)) > 0:
-						introduce, lastAffected = utils.ExtractVersions(v.LessThan, v.Version)
+						introduce, _ = utils.UpdateVersions(v.LessThan, v.Version)
 						fixed = v.LessThan
 					case utils.MinorVersion(v.Version):
 						requireMerge = true
@@ -208,13 +208,12 @@ func (s byVersion) Less(i, j int) bool {
 }
 
 func mergeVersionRange(affectedVersions []*Version) ([]*Version, error) {
-	// this special handling is made to handle to case of conceutive vulnable minor versions example:
-	// vulnerable 1.3, 1.4, 1.5, 1.6 and prior to versions 1.7.14, 1.8.9 will be form as follow:
+	// this special handling is made to handle to case of conceutive vulnable minor versions.
+	// example: vulnerable 1.3, 1.4, 1.5, 1.6 and prior to versions 1.7.14, 1.8.9 will be form as follow:
 	// Introduced: 1.3.0  Fixed: 1.7.14
 	// Introduced: 1.8.0  Fixed: 1.8.9
-
-	newAffectedVesion := make([]*Version, 0)
 	sort.Sort(byVersion(affectedVersions))
+	newAffectedVesion := make([]*Version, 0)
 	minorVersions := make([]*Version, 0)
 	for _, av := range affectedVersions {
 		if utils.MinorVersion(av.Introduced) {
@@ -233,8 +232,8 @@ func mergeVersionRange(affectedVersions []*Version) ([]*Version, error) {
 		}
 	}
 
-	// this special handling is made to handle to case of conceutive vulnable minor versions where no fixed version is provided example:
-	// vulnerable 1.3, 1.4, 1.5, 1.6  will be form as follow:
+	// this special handling is made to handle to case of consecutive vulnable minor versions, wheen there is no fixed version is provided.
+	// example: vulnerable 1.3, 1.4, 1.5, 1.6  will be form as follow:
 	// Introduced: 1.3.0  Fixed: 1.7.0
 	if len(minorVersions) > 0 {
 		ver, err := version.NewSemver(fmt.Sprintf("%s.0", minorVersions[len(minorVersions)-1].Introduced))
