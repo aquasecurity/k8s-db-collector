@@ -49,7 +49,7 @@ func CvssVectorToScore(vector string) (string, float64) {
 	return bm.Severity().String(), bm.Score()
 }
 
-func ExtractVersions(lastAffected, introduce string, lessThanOrEqual bool) (string, string) {
+func ExtractVersions(lastAffected, introduce string) (string, string) {
 	if introduce == "0" {
 		return introduce, lastAffected
 	}

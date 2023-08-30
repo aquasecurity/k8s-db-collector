@@ -84,9 +84,9 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 					}
 					switch {
 					case len(strings.TrimSpace(v.LessThanOrEqual)) > 0:
-						introduce, lastAffected = utils.ExtractVersions(v.LessThanOrEqual, v.Version, true)
+						introduce, lastAffected = utils.ExtractVersions(v.LessThanOrEqual, v.Version)
 					case len(strings.TrimSpace(v.LessThan)) > 0:
-						introduce, lastAffected = utils.ExtractVersions(v.LessThan, v.Version, false)
+						introduce, lastAffected = utils.ExtractVersions(v.LessThan, v.Version)
 						fixed = v.LessThan
 					case utils.MinorVersion(v.Version):
 						requireMerge = true

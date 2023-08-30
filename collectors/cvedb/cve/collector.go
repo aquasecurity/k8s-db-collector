@@ -37,21 +37,19 @@ const (
 )
 
 func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
-	var db map[string]interface{}
+	var db K8sCVE
 	err := json.Unmarshal(vulnDB, &db)
 	if err != nil {
 		return nil, err
 	}
 	fullVulnerabilities := make([]*Vulnerability, 0)
-	for _, item := range db["items"].([]interface{}) {
-		i := item.(map[string]interface{})
-		id := i["id"].(string)
-		if strings.Contains(excludeNonCoreComponentsCves, id) {
+	for _, item := range db.Items {
+
+		if strings.Contains(excludeNonCoreComponentsCves, item.ID) {
 			continue
 		}
-		externalURL := i["external_url"].(string)
-		for _, cveID := range utils.GetMultiIDs(id) {
-			vulnerability, err := parseMitreCve(externalURL, cveID)
+		for _, cveID := range utils.GetMultiIDs(item.ID) {
+			vulnerability, err := parseMitreCve(item.ExternalURL, cveID)
 			if err != nil {
 				return nil, err
 			}
@@ -60,16 +58,16 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 				len(vulnerability.CvssV3.Vector) == 0 {
 				continue
 			}
-			component := utils.GetComponentFromDescription(i["content_text"].(string), vulnerability.Component)
+			component := utils.GetComponentFromDescription(item.ContentText, vulnerability.Component)
 
 			fullVulnerabilities = append(fullVulnerabilities, &Vulnerability{
 				ID:          cveID,
-				CreatedAt:   i["date_published"].(string),
+				CreatedAt:   item.DatePublished,
 				Component:   getComponentName(component, vulnerability),
 				Affected:    getAffectedEvents(vulnerability),
-				Summary:     i["summary"].(string),
+				Summary:     item.Summary,
 				Description: vulnerability.Description,
-				Urls:        []string{i["url"].(string), externalURL},
+				Urls:        []string{item.URL, item.ExternalURL},
 				CvssV3:      vulnerability.CvssV3,
 				Severity:    vulnerability.Severity,
 			})
