@@ -3,7 +3,6 @@ package cve
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -55,17 +54,12 @@ type Descriptions struct {
 
 func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 	if strings.HasPrefix(externalURL, cveList) {
-		var cve MitreCVE
 		response, err := http.Get(fmt.Sprintf("%s/%s", mitreURL, cveID))
 		if err != nil {
 			return nil, err
 		}
-		cveInfo, err := io.ReadAll(response.Body)
-		if err != nil {
-			return nil, err
-		}
-		err = json.Unmarshal(cveInfo, &cve)
-		if err != nil {
+		var cve MitreCVE
+		if err = json.NewDecoder(response.Body).Decode(&cve); err != nil {
 			return nil, err
 		}
 		vulnerableVersions := make([]*Version, 0)
