@@ -49,18 +49,19 @@ func CvssVectorToScore(vector string) (string, float64) {
 	return bm.Severity().String(), bm.Score()
 }
 
-func UpdateVersions(lastAffected, introduce string) (string, string) {
+func UpdateVersions(to, introduce string) (string, string) {
 	if introduce == "0" {
-		return introduce, lastAffected
-	}
-	if MinorVersion(introduce) {
-		return introduce + ".0", lastAffected
+		return introduce, to
 	}
 
-	if lIndex := strings.LastIndex(lastAffected, "."); lIndex != -1 {
-		return strings.TrimSpace(fmt.Sprintf("%s.%s", lastAffected[:lIndex], "0")), lastAffected
+	if MinorVersion(introduce) {
+		return introduce + ".0", to
 	}
-	return introduce, lastAffected
+
+	if lIndex := strings.LastIndex(to, "."); lIndex != -1 {
+		return strings.TrimSpace(fmt.Sprintf("%s.%s", to[:lIndex], "0")), to
+	}
+	return introduce, to
 }
 
 func ExtractRangeVersions(introduce string) (string, string) {

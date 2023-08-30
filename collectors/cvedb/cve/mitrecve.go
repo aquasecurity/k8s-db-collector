@@ -83,8 +83,10 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 				case len(strings.TrimSpace(v.LessThanOrEqual)) > 0:
 					introduce, lastAffected = utils.UpdateVersions(v.LessThanOrEqual, v.Version)
 				case len(strings.TrimSpace(v.LessThan)) > 0:
-					introduce, _ = utils.UpdateVersions(v.LessThan, v.Version)
-					fixed = v.LessThan
+					if strings.HasSuffix(v.LessThan, ".0") {
+						v.Version = "0"
+					}
+					introduce, fixed = utils.UpdateVersions(v.LessThan, v.Version)
 				case utils.MinorVersion(v.Version):
 					requireMerge = true
 					introduce = v.Version
@@ -132,17 +134,14 @@ func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
 		} else if strings.Contains(v.LessThanOrEqual, "<=") {
 			v.LessThanOrEqual = strings.TrimSpace(strings.ReplaceAll(strings.TrimSpace(v.LessThanOrEqual), "<=", ""))
 		}
-	}
-	if len(v.LessThan) > 0 {
+	} else if len(v.LessThan) > 0 {
 		if strings.HasPrefix(strings.TrimSpace(v.LessThan), "prior to") {
 			v.LessThan = strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
 		} else if strings.HasSuffix(strings.TrimSpace(v.LessThan), "*") {
 			v.Version = strings.TrimSpace(strings.ReplaceAll(v.LessThan, "*", ""))
 			v.LessThan = ""
 		}
-	}
-
-	if len(v.Version) > 0 {
+	} else if len(v.Version) > 0 {
 		if strings.HasPrefix(v.Version, "< ") {
 			v.LessThan = strings.TrimPrefix(v.Version, "< ")
 		} else if strings.HasPrefix(v.Version, "<= ") {
@@ -158,11 +157,6 @@ func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
 			v.Version = strings.TrimSpace(strings.ReplaceAll(v.Version, ".x", ""))
 		}
 	}
-
-	if strings.HasSuffix(v.LessThan, ".0") {
-		v.Version = "0"
-	}
-
 	return &MitreVersion{
 		Version:         utils.TrimString(v.Version, []string{"v", "V"}),
 		LessThanOrEqual: utils.TrimString(v.LessThanOrEqual, []string{"v", "V"}),
