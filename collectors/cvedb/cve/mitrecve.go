@@ -53,69 +53,70 @@ type Descriptions struct {
 }
 
 func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
-	if strings.HasPrefix(externalURL, cveList) {
-		response, err := http.Get(fmt.Sprintf("%s/%s", mitreURL, cveID))
+	if !strings.HasPrefix(externalURL, cveList) {
+		// if no external url provided, return empty vulnerability to be skipped
+		return &Vulnerability{}, nil
+	}
+	response, err := http.Get(fmt.Sprintf("%s/%s", mitreURL, cveID))
+	if err != nil {
+		return nil, err
+	}
+	var cve MitreCVE
+	if err = json.NewDecoder(response.Body).Decode(&cve); err != nil {
+		return nil, err
+	}
+	vulnerableVersions := make([]*Version, 0)
+	var component string
+	var requireMerge bool
+	for _, a := range cve.Containers.Cna.Affected {
+		if len(component) == 0 {
+			component = strings.ToLower(a.Product)
+		}
+		for _, sv := range a.Versions {
+			if sv.Status == "affected" {
+				var introduce, lastAffected, fixed string
+				v, ok := sanitizedVersion(sv)
+				if !ok {
+					continue
+				}
+				switch {
+				case len(strings.TrimSpace(v.LessThanOrEqual)) > 0:
+					introduce, lastAffected = utils.UpdateVersions(v.LessThanOrEqual, v.Version)
+				case len(strings.TrimSpace(v.LessThan)) > 0:
+					introduce, _ = utils.UpdateVersions(v.LessThan, v.Version)
+					fixed = v.LessThan
+				case utils.MinorVersion(v.Version):
+					requireMerge = true
+					introduce = v.Version
+				default:
+					introduce, lastAffected = utils.ExtractRangeVersions(v.Version)
+				}
+				vulnerableVersions = append(vulnerableVersions, &Version{
+					Introduced:   introduce,
+					Fixed:        fixed,
+					LastAffected: lastAffected,
+				})
+			}
+		}
+	}
+	if requireMerge {
+		vulnerableVersions, err = mergeVersionRange(vulnerableVersions)
 		if err != nil {
 			return nil, err
 		}
-		var cve MitreCVE
-		if err = json.NewDecoder(response.Body).Decode(&cve); err != nil {
-			return nil, err
-		}
-		vulnerableVersions := make([]*Version, 0)
-		var component string
-		var requireMerge bool
-		for _, a := range cve.Containers.Cna.Affected {
-			if len(component) == 0 {
-				component = strings.ToLower(a.Product)
-			}
-			for _, sv := range a.Versions {
-				if sv.Status == "affected" {
-					var introduce, lastAffected, fixed string
-					v, ok := sanitizedVersion(sv)
-					if !ok {
-						continue
-					}
-					switch {
-					case len(strings.TrimSpace(v.LessThanOrEqual)) > 0:
-						introduce, lastAffected = utils.UpdateVersions(v.LessThanOrEqual, v.Version)
-					case len(strings.TrimSpace(v.LessThan)) > 0:
-						introduce, _ = utils.UpdateVersions(v.LessThan, v.Version)
-						fixed = v.LessThan
-					case utils.MinorVersion(v.Version):
-						requireMerge = true
-						introduce = v.Version
-					default:
-						introduce, lastAffected = utils.ExtractRangeVersions(v.Version)
-					}
-					vulnerableVersions = append(vulnerableVersions, &Version{
-						Introduced:   introduce,
-						Fixed:        fixed,
-						LastAffected: lastAffected,
-					})
-				}
-			}
-		}
-		if requireMerge {
-			vulnerableVersions, err = mergeVersionRange(vulnerableVersions)
-			if err != nil {
-				return nil, err
-			}
-		}
-		vector, severity, score := getMetrics(cve)
-		description := getDescription(cve.Containers.Cna.Descriptions)
-		return &Vulnerability{
-			Component:        utils.GetComponentFromDescription(description, component),
-			Description:      description,
-			AffectedVersions: vulnerableVersions,
-			CvssV3: Cvssv3{
-				Vector: vector,
-				Score:  score,
-			},
-			Severity: severity,
-		}, nil
 	}
-	return nil, fmt.Errorf("unsupported external url %s", externalURL)
+	vector, severity, score := getMetrics(cve)
+	description := getDescription(cve.Containers.Cna.Descriptions)
+	return &Vulnerability{
+		Component:        utils.GetComponentFromDescription(description, component),
+		Description:      description,
+		AffectedVersions: vulnerableVersions,
+		CvssV3: Cvssv3{
+			Vector: vector,
+			Score:  score,
+		},
+		Severity: severity,
+	}, nil
 }
 
 func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
