@@ -13,7 +13,7 @@ func Test_ParseVulneDB(t *testing.T) {
 	assert.NoError(t, err)
 	kvd, err := ParseVulnDBData(b)
 	assert.NoError(t, err)
-	err = ValidateCvesData(kvd.Cves)
+	err = validateCvesData(kvd.Cves)
 	assert.NoError(t, err)
 	gotVulnDB, err := json.Marshal(kvd.Cves)
 	assert.NoError(t, err)
