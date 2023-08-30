@@ -44,7 +44,6 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 	}
 	fullVulnerabilities := make([]*Vulnerability, 0)
 	for _, item := range db.Items {
-
 		if strings.Contains(excludeNonCoreComponentsCves, item.ID) {
 			continue
 		}
@@ -53,13 +52,10 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 			if err != nil {
 				return nil, err
 			}
-			if len(vulnerability.Component) == 0 ||
-				len(vulnerability.AffectedVersions) == 0 ||
-				len(vulnerability.CvssV3.Vector) == 0 {
+			if cveMissingImpoertantData(vulnerability) {
 				continue
 			}
 			component := utils.GetComponentFromDescription(item.ContentText, vulnerability.Component)
-
 			fullVulnerabilities = append(fullVulnerabilities, &Vulnerability{
 				ID:          cveID,
 				CreatedAt:   item.DatePublished,
@@ -73,7 +69,7 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 			})
 		}
 	}
-	err = ValidateCvesData(fullVulnerabilities)
+	err = validateCvesData(fullVulnerabilities)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +118,7 @@ func getComponentName(k8sComponent string, mitreCve *Vulnerability) string {
 	return strings.ToLower(fmt.Sprintf("%s/%s", utils.UpstreamOrgByName(k8sComponent), utils.UpstreamRepoByName(k8sComponent)))
 }
 
-func ValidateCvesData(cves []*Vulnerability) error {
+func validateCvesData(cves []*Vulnerability) error {
 	var result error
 	for _, cve := range cves {
 		if len(cve.ID) == 0 {
@@ -171,4 +167,10 @@ func ValidateCvesData(cves []*Vulnerability) error {
 		}
 	}
 	return result
+}
+
+func cveMissingImpoertantData(vulnerability *Vulnerability) bool {
+	return len(vulnerability.Component) == 0 ||
+		len(vulnerability.AffectedVersions) == 0 ||
+		len(vulnerability.CvssV3.Vector) == 0
 }

@@ -68,7 +68,7 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 		if err != nil {
 			return nil, err
 		}
-		versions := make([]*Version, 0)
+		vulnerableVersions := make([]*Version, 0)
 		var component string
 		var requireMerge bool
 		for _, a := range cve.Containers.Cna.Affected {
@@ -94,14 +94,16 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 					default:
 						introduce, lastAffected = utils.ExtractRangeVersions(v.Version)
 					}
-					ver := &Version{Introduced: introduce, Fixed: fixed, LastAffected: lastAffected}
-					versions = append(versions, ver)
+					vulnerableVersions = append(vulnerableVersions, &Version{
+						Introduced:   introduce,
+						Fixed:        fixed,
+						LastAffected: lastAffected,
+					})
 				}
 			}
 		}
-		vulnerableVersions := versions
 		if requireMerge {
-			vulnerableVersions, err = mergeVersionRange(versions)
+			vulnerableVersions, err = mergeVersionRange(vulnerableVersions)
 			if err != nil {
 				return nil, err
 			}
@@ -158,10 +160,7 @@ func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
 			}
 			v.LessThan = priorToVersion
 		} else if strings.HasSuffix(strings.TrimSpace(v.Version), ".x") {
-			li := strings.LastIndex(v.Version, ".")
-			if li != -1 {
-				v.Version = strings.TrimSpace(fmt.Sprintf("%s%s", v.Version[:li], ""))
-			}
+			v.Version = strings.TrimSpace(strings.ReplaceAll(v.Version, ".x", ""))
 		}
 	}
 
