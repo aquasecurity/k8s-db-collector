@@ -3,7 +3,6 @@ package cve
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -60,11 +59,7 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 		if err != nil {
 			return nil, err
 		}
-		cveInfo, err := io.ReadAll(response.Body)
-		if err != nil {
-			return nil, err
-		}
-		err = json.Unmarshal(cveInfo, &cve)
+		err = json.NewDecoder(response.Body).Decode(&cve)
 		if err != nil {
 			return nil, err
 		}

@@ -3,7 +3,6 @@ package cve
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -24,11 +23,12 @@ func Collect() (*K8sVulnDB, error) {
 	if err != nil {
 		return nil, err
 	}
-	vulnDB, err := io.ReadAll(response.Body)
+	var db K8sCVE
+	err = json.NewDecoder(response.Body).Decode(&db)
 	if err != nil {
 		return nil, err
 	}
-	return ParseVulnDBData(vulnDB)
+	return ParseVulnDBData(db)
 }
 
 const (
@@ -36,12 +36,7 @@ const (
 	excludeNonCoreComponentsCves = "CVE-2019-11255,CVE-2020-10749,CVE-2020-8554"
 )
 
-func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
-	var db K8sCVE
-	err := json.Unmarshal(vulnDB, &db)
-	if err != nil {
-		return nil, err
-	}
+func ParseVulnDBData(db K8sCVE) (*K8sVulnDB, error) {
 	fullVulnerabilities := make([]*Vulnerability, 0)
 	for _, item := range db.Items {
 		if strings.Contains(excludeNonCoreComponentsCves, item.ID) {
@@ -69,7 +64,7 @@ func ParseVulnDBData(vulnDB []byte) (*K8sVulnDB, error) {
 			})
 		}
 	}
-	err = validateCvesData(fullVulnerabilities)
+	err := validateCvesData(fullVulnerabilities)
 	if err != nil {
 		return nil, err
 	}
