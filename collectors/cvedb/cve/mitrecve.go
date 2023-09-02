@@ -73,32 +73,33 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 			component = strings.ToLower(a.Product)
 		}
 		for _, sv := range a.Versions {
-			if sv.Status == "affected" {
-				var introduce, lastAffected, fixed string
-				v, ok := sanitizedVersion(sv)
-				if !ok {
-					continue
-				}
-				switch {
-				case len(strings.TrimSpace(v.LessThanOrEqual)) > 0:
-					introduce, lastAffected = utils.UpdateVersions(v.LessThanOrEqual, v.Version)
-				case len(strings.TrimSpace(v.LessThan)) > 0:
-					if strings.HasSuffix(v.LessThan, ".0") {
-						v.Version = "0"
-					}
-					introduce, fixed = utils.UpdateVersions(v.LessThan, v.Version)
-				case utils.MinorVersion(v.Version):
-					requireMerge = true
-					introduce = v.Version
-				default:
-					introduce, lastAffected = utils.ExtractRangeVersions(v.Version)
-				}
-				vulnerableVersions = append(vulnerableVersions, &Version{
-					Introduced:   introduce,
-					Fixed:        fixed,
-					LastAffected: lastAffected,
-				})
+			if sv.Status != "affected" {
+				continue
 			}
+			var introduce, lastAffected, fixed string
+			v, ok := sanitizedVersions(sv)
+			if !ok {
+				continue
+			}
+			switch {
+			case len(strings.TrimSpace(v.LessThanOrEqual)) > 0:
+				introduce, lastAffected = utils.UpdateVersions(v.LessThanOrEqual, v.Version)
+			case len(strings.TrimSpace(v.LessThan)) > 0:
+				if strings.HasSuffix(v.LessThan, ".0") {
+					v.Version = "0"
+				}
+				introduce, fixed = utils.UpdateVersions(v.LessThan, v.Version)
+			case utils.MinorVersion(v.Version):
+				requireMerge = true
+				introduce = v.Version
+			default:
+				introduce, lastAffected = utils.ExtractRangeVersions(v.Version)
+			}
+			vulnerableVersions = append(vulnerableVersions, &Version{
+				Introduced:   introduce,
+				Fixed:        fixed,
+				LastAffected: lastAffected,
+			})
 		}
 	}
 	if requireMerge {
@@ -121,7 +122,7 @@ func parseMitreCve(externalURL string, cveID string) (*Vulnerability, error) {
 	}, nil
 }
 
-func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
+func sanitizedVersions(v *MitreVersion) (*MitreVersion, bool) {
 	if strings.Contains(v.Version, "n/a") && len(v.LessThan) == 0 && len(v.LessThanOrEqual) == 0 {
 		return v, false
 	}
@@ -129,31 +130,34 @@ func sanitizedVersion(v *MitreVersion) (*MitreVersion, bool) {
 		return v, false
 	}
 	if len(v.LessThanOrEqual) > 0 {
-		if v.LessThanOrEqual == "<=" {
+		switch {
+		case v.LessThanOrEqual == "<=":
 			v.LessThanOrEqual = v.Version
-		} else if strings.Contains(v.LessThanOrEqual, "<=") {
+		case strings.Contains(v.LessThanOrEqual, "<="):
 			v.LessThanOrEqual = strings.TrimSpace(strings.ReplaceAll(strings.TrimSpace(v.LessThanOrEqual), "<=", ""))
 		}
 	} else if len(v.LessThan) > 0 {
-		if strings.HasPrefix(strings.TrimSpace(v.LessThan), "prior to") {
+		switch {
+		case strings.HasPrefix(strings.TrimSpace(v.LessThan), "prior to"):
 			v.LessThan = strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
-		} else if strings.HasSuffix(strings.TrimSpace(v.LessThan), "*") {
+		case strings.HasSuffix(strings.TrimSpace(v.LessThan), "*"):
 			v.Version = strings.TrimSpace(strings.ReplaceAll(v.LessThan, "*", ""))
 			v.LessThan = ""
 		}
 	} else if len(v.Version) > 0 {
-		if strings.HasPrefix(v.Version, "< ") {
+		switch {
+		case strings.HasPrefix(v.Version, "< "):
 			v.LessThan = strings.TrimPrefix(v.Version, "< ")
-		} else if strings.HasPrefix(v.Version, "<= ") {
+		case strings.HasPrefix(v.Version, "<= "):
 			v.LessThanOrEqual = strings.TrimPrefix(v.Version, "<= ")
-		} else if strings.HasPrefix(strings.TrimSpace(v.Version), "prior to") {
+		case strings.HasPrefix(strings.TrimSpace(v.Version), "prior to"):
 			priorToVersion := strings.TrimSpace(strings.TrimPrefix(v.Version, "prior to"))
 			if utils.MinorVersion(priorToVersion) {
 				priorToVersion = priorToVersion + ".0"
 				v.Version = priorToVersion
 			}
 			v.LessThan = priorToVersion
-		} else if strings.HasSuffix(strings.TrimSpace(v.Version), ".x") {
+		case strings.HasSuffix(strings.TrimSpace(v.Version), ".x"):
 			v.Version = strings.TrimSpace(strings.ReplaceAll(v.Version, ".x", ""))
 		}
 	}
