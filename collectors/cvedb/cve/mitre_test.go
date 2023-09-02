@@ -25,7 +25,7 @@ func TestSanitizedVersion(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			got, _ := sanitizedVersion(tt.Version)
+			got, _ := sanitizedVersions(tt.Version)
 			assert.Equal(t, got, tt.Want)
 
 		})
