@@ -1,7 +1,5 @@
 name: K8s update vuln db
 on:
-  schedule:
-    - cron: "0 0 * * *" # Every night at midnight
   workflow_dispatch:
 
 jobs:
