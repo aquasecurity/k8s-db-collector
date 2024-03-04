@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/goark/go-cvss v1.6.6
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f
 )
 
