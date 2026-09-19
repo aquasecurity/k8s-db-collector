@@ -80,7 +80,7 @@ func (u Updater) Update() error {
 	filePath := filepath.Join(fp, k8sAPIFileName)
 	var prettyJSON bytes.Buffer
 	if err := json.Indent(&prettyJSON, data, "", "\t"); err != nil {
-		return fmt.Errorf("failed ro format json: %w", err)
+		return fmt.Errorf("failed to format json: %w", err)
 	}
 	if err = os.WriteFile(filePath, prettyJSON.Bytes(), 0644); err != nil {
 		return xerrors.Errorf("write error: %w", err)

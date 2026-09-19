@@ -31,7 +31,7 @@ func Collect() (*K8sVulnDB, error) {
 }
 
 const (
-	// excludeNonCoreComponentsCves exclude  cves with missing data or non k8s core components
+	// excludeNonCoreComponentsCves exclude cves with missing data or non k8s core components
 	excludeNonCoreComponentsCves = "CVE-2019-11255,CVE-2020-10749,CVE-2020-8554"
 )
 
@@ -116,19 +116,19 @@ func validateCvesData(cves []*Vulnerability) error {
 	var result error
 	for _, cve := range cves {
 		if len(cve.ID) == 0 {
-			result = multierror.Append(result, fmt.Errorf("\nid is mssing on cve #%s", cve.ID))
+			result = multierror.Append(result, fmt.Errorf("\nid is missing on cve #%s", cve.ID))
 		}
 		if len(cve.CreatedAt) == 0 {
-			result = multierror.Append(result, fmt.Errorf("\nCreatedAt is mssing on cve #%s", cve.ID))
+			result = multierror.Append(result, fmt.Errorf("\nCreatedAt is missing on cve #%s", cve.ID))
 		}
 		if len(cve.Summary) == 0 {
-			result = multierror.Append(result, fmt.Errorf("\nSummary is mssing on cve #%s", cve.ID))
+			result = multierror.Append(result, fmt.Errorf("\nSummary is missing on cve #%s", cve.ID))
 		}
 		if len(strings.TrimPrefix(cve.Component, utils.UpstreamOrgByName(cve.Component))) == 0 {
-			result = multierror.Append(result, fmt.Errorf("\nComponent is mssing on cve #%s", cve.ID))
+			result = multierror.Append(result, fmt.Errorf("\nComponent is missing on cve #%s", cve.ID))
 		}
 		if len(cve.Description) == 0 {
-			result = multierror.Append(result, fmt.Errorf("\nDescription is mssing on cve #%s", cve.ID))
+			result = multierror.Append(result, fmt.Errorf("\nDescription is missing on cve #%s", cve.ID))
 		}
 		if len(cve.Affected) == 0 {
 			result = multierror.Append(result, fmt.Errorf("\nAffected Version is missing on cve #%s", cve.ID))
@@ -154,10 +154,10 @@ func validateCvesData(cves []*Vulnerability) error {
 			result = multierror.Append(result, fmt.Errorf("\nVector is mssing on cve #%s", cve.ID))
 		}
 		if cve.Severity == "" {
-			result = multierror.Append(result, fmt.Errorf("\nSeverity is mssing on cve #%s", cve.ID))
+			result = multierror.Append(result, fmt.Errorf("\nSeverity is missing on cve #%s", cve.ID))
 		}
 		if len(cve.Urls) == 0 {
-			result = multierror.Append(result, fmt.Errorf("\nUrls is mssing on cve #%s", cve.ID))
+			result = multierror.Append(result, fmt.Errorf("\nUrls is missing on cve #%s", cve.ID))
 		}
 	}
 	return result
