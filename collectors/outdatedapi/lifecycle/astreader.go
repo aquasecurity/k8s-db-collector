@@ -38,7 +38,7 @@ type AstObjComments struct {
 	Replaced   string
 }
 
-// AnalyzeComments scan k8s types source file parse it generation comments and return Kind , deprecate,removed and replacements versions
+// AnalyzeComments scan k8s types source file parse it generation comments and return Kind, deprecate,removed and replacements versions
 func (ar AstReader) AnalyzeComments(data string) ([]AstObjComments, error) {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, "src.go", data, parser.ParseComments)

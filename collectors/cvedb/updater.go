@@ -72,7 +72,7 @@ func (u Updater) Update() error {
 		}
 		var prettyJSON bytes.Buffer
 		if err := json.Indent(&prettyJSON, data, "", "\t"); err != nil {
-			return fmt.Errorf("failed ro format json: %w", err)
+			return fmt.Errorf("failed to format json: %w", err)
 		}
 		filePath := filepath.Join(fp, fmt.Sprintf("%s.json", cve.ID))
 		if err = os.WriteFile(filePath, prettyJSON.Bytes(), 0644); err != nil {

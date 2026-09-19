@@ -78,7 +78,7 @@ func GetGroup(asd []AstData, origGgroup string) string {
 	for _, d := range asd {
 		if len(strings.TrimSpace(d.group)) != 0 {
 			newGroup := strings.TrimSuffix(fmt.Sprintf("%s.", strings.Trim(d.group, `"`)), ".")
-			if newGroup != origGgroup { //update group acording to replacement version
+			if newGroup != origGgroup { //update group according to replacement version
 				return newGroup
 			}
 		}
